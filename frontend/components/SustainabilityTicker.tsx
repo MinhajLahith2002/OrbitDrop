@@ -87,7 +87,7 @@ export default function SustainabilityTicker({
             <div>
               <div className="text-[10px] text-slate-400 uppercase font-medium">CEB Power Tariff Saved</div>
               <div className="text-sm font-extrabold text-emerald-400 font-mono">
-                රු. {metrics.costSavedLKR > 0 ? metrics.costSavedLKR.toLocaleString() : "4,350"}
+                LKR {metrics.costSavedLKR > 0 ? metrics.costSavedLKR.toLocaleString() : "4,350"}
               </div>
               <div className="text-[10px] text-slate-500 font-mono">
                 ({metrics.electricitySavedKWh > 0 ? metrics.electricitySavedKWh : "145"} kWh pumped)

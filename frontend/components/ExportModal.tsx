@@ -56,7 +56,7 @@ export default function ExportModal({
             areaAcres: field.areaAcres,
             perimeterMeters: field.perimeterMeters,
             centroid: field.centroid,
-            crop: telemetryData?.cropDemand?.cropName || "Paddy / Rice (වී)",
+            crop: telemetryData?.cropDemand?.cropName || "Paddy / Rice",
             growthStage: telemetryData?.cropDemand?.growthStage || "mid",
             irrigationMethod: telemetryData?.cropDemand?.irrigationMethod || "Cascade Basin",
             nasaObservationDate: telemetryData?.nasa?.dataDate || "20261109",
@@ -190,7 +190,7 @@ export default function ExportModal({
               <div className="flex justify-between">
                 <span className="text-slate-400">Target Crop & Growth Stage:</span>
                 <span className="font-semibold text-slate-200">
-                  {telemetryData?.cropDemand?.cropNameSi || "Paddy / Rice (වී)"} • {telemetryData?.cropDemand?.growthStage || "Mid-Season"} (Kc: {telemetryData?.cropDemand?.Kc || 1.2})
+                  {telemetryData?.cropDemand?.cropName || "Paddy / Rice"} • {telemetryData?.cropDemand?.growthStage || "Mid-Season"} (Kc: {telemetryData?.cropDemand?.Kc || 1.2})
                 </span>
               </div>
               <div className="flex justify-between">
@@ -248,7 +248,7 @@ export default function ExportModal({
             <div>
               <span className="text-[10px] text-slate-400 block">CEB Power Tariff Saved</span>
               <span className="font-bold text-emerald-400 text-sm font-mono">
-                රු. {telemetryData?.rainLockout?.sustainabilityImpact?.costSavedLKR?.toLocaleString() || "3,250"}
+                LKR {telemetryData?.rainLockout?.sustainabilityImpact?.costSavedLKR?.toLocaleString() || "3,250"}
               </span>
             </div>
             <div>

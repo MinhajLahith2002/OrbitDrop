@@ -82,7 +82,7 @@ export default function StatsPanel({
           </div>
           <div>
             <h3 className="font-semibold text-sm text-slate-100">Step 1: Outline Sri Lankan Farm Parcel</h3>
-            <p className="text-[11px] text-slate-400">Paddy field (වෙල්යාය), tea estate or coconut plot</p>
+            <p className="text-[11px] text-slate-400">Paddy field, tea estate, or coconut plot</p>
           </div>
         </div>
 
@@ -93,7 +93,7 @@ export default function StatsPanel({
           </div>
           <div className="flex items-start space-x-2">
             <span className="w-5 h-5 rounded-full bg-cyan-900/60 text-cyan-300 flex items-center justify-center text-[10px] font-bold mt-0.5">2</span>
-            <p>Click <strong className="text-cyan-300">Polygon</strong> on the left toolbar and trace field bunds (*Niyara*).</p>
+            <p>Click <strong className="text-cyan-300">Polygon</strong> on the left toolbar and trace field bunds or boundaries.</p>
           </div>
           <div className="flex items-start space-x-2">
             <span className="w-5 h-5 rounded-full bg-cyan-900/60 text-cyan-300 flex items-center justify-center text-[10px] font-bold mt-0.5">3</span>
@@ -174,7 +174,7 @@ export default function StatsPanel({
         <div className="flex items-center space-x-2">
           <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></div>
           <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">
-            Field Captured (ශ්‍රී ලංකා)
+            Field Captured (Sri Lanka)
           </span>
         </div>
         <button
@@ -345,13 +345,13 @@ export default function StatsPanel({
             onChange={(e) => setSelectedCrop(e.target.value)}
             className="w-full bg-slate-900 border border-slate-800 text-xs rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-cyan-500"
           >
-            <option value="paddy">🌾 Rice / Paddy — වී (Maha/Yala Basins)</option>
-            <option value="tea">🫖 Ceylon Tea — තේ (Nuwara Eliya / Kandy)</option>
-            <option value="coconut">🌴 Coconut — පොල් (Coconut Triangle)</option>
-            <option value="maize">🌽 Maize — බඩ ඉරිඟු (Dry Zone Granary)</option>
-            <option value="chili">🌶️ Chili & Red Onion — මිරිස් / රතු ළූණු (Jaffna)</option>
-            <option value="vegetables">🥔 Upcountry Veggies — අල (Nuwara Eliya)</option>
-            <option value="cinnamon">🌿 Cinnamon & Spices — කුරුඳු (Wet Zone)</option>
+            <option value="paddy">🌾 Rice / Paddy (Maha/Yala Basins)</option>
+            <option value="tea">🫖 Ceylon Tea (Nuwara Eliya / Kandy)</option>
+            <option value="coconut">🌴 Coconut (Coconut Triangle)</option>
+            <option value="maize">🌽 Maize (Dry Zone Granary)</option>
+            <option value="chili">🌶️ Chili & Red Onion (Jaffna)</option>
+            <option value="vegetables">🥔 Upcountry Vegetables (Nuwara Eliya)</option>
+            <option value="cinnamon">🌿 Cinnamon & Spices (Wet Zone)</option>
           </select>
         </div>
 
@@ -483,7 +483,7 @@ export default function StatsPanel({
                   <div>
                     <div className="text-[9px] text-slate-400">CEB Tariff Saved</div>
                     <div className="font-bold text-emerald-300 text-xs font-mono">
-                      රු. {telemetryData.rainLockout.sustainabilityImpact.costSavedLKR?.toLocaleString()}
+                      LKR {telemetryData.rainLockout.sustainabilityImpact.costSavedLKR?.toLocaleString()}
                     </div>
                   </div>
                   <div>

@@ -15,7 +15,7 @@ export const PRESET_FARMLANDS: PresetLocation[] = [
   },
   {
     name: "Anuradhapura Farmlands",
-    region: "Dry Zone Cascade Tanks (Wewa)",
+    region: "Dry Zone Cascade Reservoir Tanks",
     lat: 8.3325,
     lng: 80.4250,
     zoom: 14,

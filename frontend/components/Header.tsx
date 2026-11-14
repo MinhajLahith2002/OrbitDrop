@@ -26,7 +26,7 @@ export default function Header({ onReset, onOpenExport, activeFieldPresent }: He
             </span>
           </div>
           <p className="text-xs text-slate-400">
-            Precision Evapotranspiration, Cascade Tank (*Wewa*) Water Saving & Rain Lockout
+            Precision Evapotranspiration, Cascade Reservoir Water Saving & Rain Lockout
           </p>
         </div>
       </div>

@@ -220,7 +220,7 @@ export default function MapComponent({
             areaHectares,
             areaAcres,
             perimeterMeters,
-            cropType: "Rice / Paddy (වී)",
+            cropType: "Rice / Paddy",
             createdAt: new Date().toISOString(),
           };
 

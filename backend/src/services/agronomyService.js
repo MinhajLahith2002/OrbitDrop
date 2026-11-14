@@ -13,7 +13,7 @@ export const IRRIGATION_METHODS = {
 export const CROP_COEFFICIENTS = {
   paddy: {
     name: "Paddy / Rice",
-    nameSi: "වී (Rice Paddy)",
+    nameSi: "Paddy / Rice",
     initial: 1.05,
     mid: 1.20,
     mature: 0.85,
@@ -21,7 +21,7 @@ export const CROP_COEFFICIENTS = {
   },
   tea: {
     name: "Ceylon Tea",
-    nameSi: "තේ (Ceylon Tea)",
+    nameSi: "Ceylon Tea",
     initial: 0.85,
     mid: 1.05,
     mature: 0.95,
@@ -29,7 +29,7 @@ export const CROP_COEFFICIENTS = {
   },
   coconut: {
     name: "Coconut",
-    nameSi: "පොල් (Coconut Palm)",
+    nameSi: "Coconut Palm",
     initial: 0.70,
     mid: 0.80,
     mature: 0.75,
@@ -37,7 +37,7 @@ export const CROP_COEFFICIENTS = {
   },
   maize: {
     name: "Maize / Corn",
-    nameSi: "බඩ ඉරිඟු (Dry Zone Maize)",
+    nameSi: "Dry Zone Maize",
     initial: 0.35,
     mid: 1.20,
     mature: 0.60,
@@ -45,7 +45,7 @@ export const CROP_COEFFICIENTS = {
   },
   chili: {
     name: "Chili & Red Onions",
-    nameSi: "මිරිස් / රතු ළූණු (Jaffna & Dry Zone)",
+    nameSi: "Chili & Red Onions",
     initial: 0.60,
     mid: 1.15,
     mature: 0.80,
@@ -53,7 +53,7 @@ export const CROP_COEFFICIENTS = {
   },
   vegetables: {
     name: "Upcountry Vegetables (Potato/Carrot)",
-    nameSi: "උඩරට එළවළු (Nuwara Eliya)",
+    nameSi: "Upcountry Vegetables",
     initial: 0.50,
     mid: 1.15,
     mature: 0.75,
@@ -61,7 +61,7 @@ export const CROP_COEFFICIENTS = {
   },
   cinnamon: {
     name: "Cinnamon & Spices",
-    nameSi: "කුරුඳු (Cinnamon & Spices)",
+    nameSi: "Cinnamon & Spices",
     initial: 0.70,
     mid: 0.95,
     mature: 0.85,
