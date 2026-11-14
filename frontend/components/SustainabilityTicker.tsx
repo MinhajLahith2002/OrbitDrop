@@ -85,12 +85,12 @@ export default function SustainabilityTicker({
               <Zap className="w-4 h-4" />
             </div>
             <div>
-              <div className="text-[10px] text-slate-400 uppercase font-medium">CEB Power Tariff Saved</div>
+              <div className="text-[10px] text-slate-400 uppercase font-medium">Electricity Bill Saved</div>
               <div className="text-sm font-extrabold text-emerald-400 font-mono">
                 LKR {metrics.costSavedLKR > 0 ? metrics.costSavedLKR.toLocaleString() : "4,350"}
               </div>
               <div className="text-[10px] text-slate-500 font-mono">
-                ({metrics.electricitySavedKWh > 0 ? metrics.electricitySavedKWh : "145"} kWh pumped)
+                ({metrics.electricitySavedKWh > 0 ? metrics.electricitySavedKWh : "145"} kWh pump electricity)
               </div>
             </div>
           </div>
@@ -101,12 +101,12 @@ export default function SustainabilityTicker({
               <Leaf className="w-4 h-4" />
             </div>
             <div>
-              <div className="text-[10px] text-slate-400 uppercase font-medium">Carbon Emissions Offset</div>
+              <div className="text-[10px] text-slate-400 uppercase font-medium">Clean Air Benefit</div>
               <div className="text-sm font-extrabold text-teal-300 font-mono">
                 {metrics.carbonOffsetKgCO2 > 0 ? metrics.carbonOffsetKgCO2 : "55.8"} <span className="text-[10px] font-normal text-slate-400">kg CO₂</span>
               </div>
               <div className="text-[10px] text-slate-500">
-                Reduced pump diesel/coal burn
+                Reduced fuel and diesel burn
               </div>
             </div>
           </div>
@@ -117,12 +117,12 @@ export default function SustainabilityTicker({
             {metrics.isLockoutActive ? (
               <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-amber-950/80 border border-amber-500/50 text-amber-300 text-xs font-bold">
                 <ShieldAlert className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-                <span>Monsoon Lockout ({metrics.rainForecastMm}mm)</span>
+                <span>Rain Coming ({metrics.rainForecastMm}mm)</span>
               </div>
             ) : (
               <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 text-xs font-bold">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Dry Spell Active</span>
+                <span>Dry Spell: Safe to Water</span>
               </div>
             )}
           </div>
@@ -133,7 +133,7 @@ export default function SustainabilityTicker({
               onClick={onOpenExport}
               className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-sky-500 hover:from-cyan-400 hover:to-sky-400 text-slate-950 font-bold text-xs flex items-center space-x-1.5 shadow-md shadow-cyan-500/20 transition-all hover:scale-105 active:scale-95"
             >
-              <span>Export Dispatch Plan</span>
+              <span>Download / Print Plan</span>
             </button>
           )}
         </div>

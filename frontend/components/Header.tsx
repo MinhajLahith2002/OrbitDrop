@@ -22,11 +22,11 @@ export default function Header({ onReset, onOpenExport, activeFieldPresent }: He
               OrbitDrop Sri Lanka
             </h1>
             <span className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full bg-cyan-950/80 text-cyan-300 border border-cyan-500/30">
-              NASA Telemetry · Yala/Maha
+              Live Satellite · Sri Lanka
             </span>
           </div>
           <p className="text-xs text-slate-400">
-            Precision Evapotranspiration, Cascade Reservoir Water Saving & Rain Lockout
+            Smart Crop Watering, Weather Forecast & Rain Lockout
           </p>
         </div>
       </div>
@@ -44,7 +44,7 @@ export default function Header({ onReset, onOpenExport, activeFieldPresent }: He
             className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-cyan-950/70 hover:bg-cyan-900/80 border border-cyan-500/40 text-xs font-semibold text-cyan-200 transition-all shadow-md hover:shadow-cyan-500/20"
           >
             <Download className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Export Plan</span>
+            <span>Download / Print Plan</span>
           </button>
         )}
 

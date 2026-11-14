@@ -184,7 +184,7 @@ export default function ExportModal({
           <div className="space-y-2">
             <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center space-x-1.5">
               <Droplets className="w-4 h-4" />
-              <span>FAO-56 Agronomic Water Prescription</span>
+              <span>Crop Water Needs Calculation</span>
             </h4>
             <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
               <div className="flex justify-between">
@@ -194,19 +194,19 @@ export default function ExportModal({
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Baseline Evapotranspiration (ET₀):</span>
+                <span className="text-slate-400">Natural Sun Evaporation (ET₀):</span>
                 <span className="font-mono font-bold text-cyan-300">
                   {telemetryData?.evapotranspiration?.ET0_mm_per_day || 2.5} mm/day
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Crop Water Loss (ETc):</span>
+                <span className="text-slate-400">Daily Crop Thirst (ETc):</span>
                 <span className="font-mono font-bold text-emerald-300">
                   {telemetryData?.cropDemand?.ETc_mm_per_day || 3.0} mm/day
                 </span>
               </div>
               <div className="flex justify-between border-t border-slate-800 pt-2 font-bold text-slate-100">
-                <span>Recommended Pump Delivery (after losses):</span>
+                <span>Recommended Water to Pump:</span>
                 <span className="font-mono text-cyan-400 text-sm">
                   {telemetryData?.cropDemand?.grossWaterDemandLiters?.toLocaleString() || "350,000"} Liters
                 </span>
@@ -218,19 +218,19 @@ export default function ExportModal({
           {gridData && (
             <div className="space-y-2">
               <h4 className="text-xs font-bold uppercase tracking-wider text-sky-400">
-                30m Micro-Stress Variable-Rate Breakdown
+                Field Dry Spot Breakdown (30m Blocks)
               </h4>
               <div className="grid grid-cols-3 gap-2 text-center">
                 <div className="p-2 rounded-lg bg-red-950/30 border border-red-500/30">
-                  <span className="text-[10px] text-red-400 block font-bold">Critical Drought (3x)</span>
+                  <span className="text-[10px] text-red-400 block font-bold">Very Dry Spots (Needs 3x Water)</span>
                   <span className="font-mono text-slate-100">{gridData.criticalCount} cells ({Math.round((gridData.criticalCount / gridData.totalCells) * 100)}%)</span>
                 </div>
                 <div className="p-2 rounded-lg bg-amber-950/30 border border-amber-500/30">
-                  <span className="text-[10px] text-amber-400 block font-bold">Moderate Stress (1x)</span>
+                  <span className="text-[10px] text-amber-400 block font-bold">Moderate Thirst (Normal Water)</span>
                   <span className="font-mono text-slate-100">{gridData.warningCount} cells ({Math.round((gridData.warningCount / gridData.totalCells) * 100)}%)</span>
                 </div>
                 <div className="p-2 rounded-lg bg-emerald-950/30 border border-emerald-500/30">
-                  <span className="text-[10px] text-emerald-400 block font-bold">Optimal / Saturated (0x)</span>
+                  <span className="text-[10px] text-emerald-400 block font-bold">Well Hydrated (No Water Needed)</span>
                   <span className="font-mono text-slate-100">{gridData.optimalCount} cells ({Math.round((gridData.optimalCount / gridData.totalCells) * 100)}%)</span>
                 </div>
               </div>
@@ -240,19 +240,19 @@ export default function ExportModal({
           {/* Sustainability & Sri Lanka ROI Summary */}
           <div className="p-3.5 rounded-xl bg-gradient-to-r from-emerald-950/50 via-slate-950 to-cyan-950/50 border border-emerald-500/30 grid grid-cols-3 gap-3 text-center">
             <div>
-              <span className="text-[10px] text-slate-400 block">Cascade Tank Water Saved</span>
+              <span className="text-[10px] text-slate-400 block">Reservoir Water Saved</span>
               <span className="font-bold text-cyan-300 text-sm font-mono">
                 {telemetryData?.rainLockout?.sustainabilityImpact?.waterSavedAcreFeet || "0.45"} Ac-ft
               </span>
             </div>
             <div>
-              <span className="text-[10px] text-slate-400 block">CEB Power Tariff Saved</span>
+              <span className="text-[10px] text-slate-400 block">Electricity Bill Saved</span>
               <span className="font-bold text-emerald-400 text-sm font-mono">
                 LKR {telemetryData?.rainLockout?.sustainabilityImpact?.costSavedLKR?.toLocaleString() || "3,250"}
               </span>
             </div>
             <div>
-              <span className="text-[10px] text-slate-400 block">Carbon Offset</span>
+              <span className="text-[10px] text-slate-400 block">Clean Air Benefit</span>
               <span className="font-bold text-teal-300 text-sm font-mono">
                 {telemetryData?.rainLockout?.sustainabilityImpact?.carbonOffsetKgCO2 || "38.5"} kg CO₂
               </span>
