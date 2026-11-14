@@ -25,16 +25,32 @@ body {
   background: #0b1120 !important;
 }
 
-/* Geoman Toolbar dark theme customisation */
+/* Geoman Toolbar dark theme customisation & positioning */
+.leaflet-top.leaflet-left {
+  top: 130px !important;
+  left: 24px !important;
+  z-index: 900 !important;
+}
+
+.leaflet-pm-toolbar {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 0 15px rgba(6, 182, 212, 0.2) !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(6, 182, 212, 0.3) !important;
+}
+
 .leaflet-pm-toolbar .leaflet-buttons-control-button {
-  background-color: #0f172a !important;
+  background-color: #090e17 !important;
   color: #38bdf8 !important;
   border: 1px solid #1e293b !important;
+  width: 36px !important;
+  height: 36px !important;
+  transition: all 0.2s ease !important;
 }
 
 .leaflet-pm-toolbar .leaflet-buttons-control-button:hover {
-  background-color: #1e293b !important;
-  color: #38bdf8 !important;
+  background-color: #082f49 !important;
+  color: #22d3ee !important;
 }
 
 .leaflet-pm-toolbar .active {
