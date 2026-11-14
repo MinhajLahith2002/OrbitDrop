@@ -3,16 +3,18 @@
 import React, { useState } from "react";
 import dynamic from "next/dynamic";
 import Header from "@/components/Header";
-import PresetsBar, { PRESET_FARMLANDS } from "@/components/PresetsBar";
-import StatsPanel from "@/components/StatsPanel";
-import SustainabilityTicker from "@/components/SustainabilityTicker";
-import ExportModal from "@/components/ExportModal";
+import FieldSummaryBadge from "@/components/FieldSummaryBadge";
+import WaterWiseDock from "@/components/WaterWiseDock";
 import CropInfoModal from "@/components/CropInfoModal";
+import FarmLocationModal from "@/components/FarmLocationModal";
 import WaterUsageModal from "@/components/WaterUsageModal";
 import SproutAICopilot from "@/components/SproutAICopilot";
-import WaterWiseDock from "@/components/WaterWiseDock";
+import ExportModal from "@/components/ExportModal";
+import StatsPanel from "@/components/StatsPanel";
 import { FieldData, PresetLocation, DownscalingResult } from "@/types/geo";
 import { CROP_COEFFICIENTS } from "@/lib/services/agronomyService";
+import { PRESET_FARMLANDS } from "@/components/PresetsBar";
+import { X, Layers } from "lucide-react";
 
 // Dynamically import MapComponent to disable server-side rendering for Leaflet & Canvas
 const MapComponent = dynamic(() => import("@/components/MapComponent"), {
@@ -21,7 +23,7 @@ const MapComponent = dynamic(() => import("@/components/MapComponent"), {
     <div className="w-full h-screen flex flex-col items-center justify-center bg-slate-950 text-cyan-400">
       <div className="w-12 h-12 border-4 border-cyan-500/20 border-t-cyan-400 rounded-full animate-spin mb-4" />
       <p className="text-sm tracking-wide font-medium">
-        Initializing Esri High-Resolution Satellite Feed...
+        Initializing Satellite Basemap Feed...
       </p>
     </div>
   ),
@@ -34,12 +36,16 @@ export default function Home() {
   const [isIrrigating, setIsIrrigating] = useState(false);
   const [telemetryData, setTelemetryData] = useState<any>(null);
   const [isExportOpen, setIsExportOpen] = useState(false);
-  const [selectedPreset, setSelectedPreset] = useState<PresetLocation | null>(null);
+  const [selectedPreset, setSelectedPreset] = useState<PresetLocation | null>(
+    PRESET_FARMLANDS[0]
+  );
 
   // WaterWise Modals & Configuration State
   const [isCropInfoOpen, setIsCropInfoOpen] = useState(false);
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [isWaterUsageOpen, setIsWaterUsageOpen] = useState(false);
   const [isSproutAIOpen, setIsSproutAIOpen] = useState(false);
+  const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
 
   const [selectedCrop, setSelectedCrop] = useState("paddy");
   const [growthStage, setGrowthStage] = useState("mid");
@@ -110,7 +116,10 @@ export default function Home() {
   };
 
   const handleGenerateGrid = async () => {
-    if (!activeField) return;
+    if (!activeField) {
+      alert("Please draw an agricultural parcel or select a preset first!");
+      return;
+    }
     setIsGeneratingGrid(true);
     try {
       const response = await fetch("/api/predict-stress", {
@@ -139,7 +148,7 @@ export default function Home() {
 
   const handleStartIrrigation = () => {
     if (!activeField) {
-      alert("Please draw an agricultural parcel or select a preset first!");
+      alert("Please draw an agricultural parcel on the map first!");
       return;
     }
     setIsIrrigating(true);
@@ -190,42 +199,20 @@ export default function Home() {
 
   const activeCropDisplay = CROP_COEFFICIENTS[selectedCrop]?.name || selectedCrop.toUpperCase();
 
-  // Derive metrics for the Sustainability Ticker
-  const tickerMetrics = telemetryData ? {
-    waterSavedLiters: telemetryData.rainLockout?.sustainabilityImpact?.waterSavedLiters || 0,
-    waterSavedAcreFeet: telemetryData.rainLockout?.sustainabilityImpact?.waterSavedAcreFeet || 0,
-    electricitySavedKWh: telemetryData.rainLockout?.sustainabilityImpact?.electricitySavedKWh || 0,
-    costSavedLKR: telemetryData.rainLockout?.sustainabilityImpact?.costSavedLKR || 0,
-    costSavedUSD: telemetryData.rainLockout?.sustainabilityImpact?.costSavedUSD || 0,
-    carbonOffsetKgCO2: telemetryData.rainLockout?.sustainabilityImpact?.carbonOffsetKgCO2 || 0,
-    isLockoutActive: telemetryData.rainLockout?.isLockoutActive || false,
-    rainForecastMm: telemetryData.rainLockout?.totalForecastRain48h_mm || 0,
-    waterWastedVsFloodLiters: telemetryData.cropDemand?.waterWastedByFloodLiters || 0,
-  } : activeField ? {
-    waterSavedLiters: Math.round(activeField.areaHectares * 25000),
-    waterSavedAcreFeet: parseFloat(((activeField.areaHectares * 25000) / 1233480).toFixed(2)),
-    electricitySavedKWh: Math.round(activeField.areaHectares * 3.5),
-    costSavedLKR: Math.round(activeField.areaHectares * 105),
-    costSavedUSD: parseFloat((activeField.areaHectares * 0.35).toFixed(2)),
-    carbonOffsetKgCO2: parseFloat((activeField.areaHectares * 1.35).toFixed(1)),
-    isLockoutActive: false,
-    rainForecastMm: 0,
-    waterWastedVsFloodLiters: Math.round(activeField.areaHectares * 18000),
-  } : null;
-
   return (
     <main className="relative w-screen h-screen overflow-hidden bg-slate-950 font-sans">
-      {/* Top Header */}
+      {/* Sleek Top Header */}
       <Header
         activeFieldPresent={!!activeField}
         onReset={handleReset}
         onOpenExport={() => setIsExportOpen(true)}
+        locationName={selectedPreset?.name || "Polonnaruwa Basin"}
+        onOpenLocationModal={() => setIsLocationModalOpen(true)}
+        activeCropName={activeCropDisplay}
+        onOpenCropModal={() => setIsCropInfoOpen(true)}
       />
 
-      {/* Farmland Quick Jumps */}
-      <PresetsBar onSelectPreset={handleSelectPreset} />
-
-      {/* Interactive Map Core with HTML5 Canvas Water Splash */}
+      {/* Full-Bleed Interactive Map Core with HTML5 Canvas Spray */}
       <MapComponent
         onFieldCreated={handleFieldCreated}
         onFieldCleared={handleFieldCleared}
@@ -235,46 +222,29 @@ export default function Home() {
         isIrrigating={isIrrigating}
         onIrrigationComplete={handleIrrigationComplete}
         activeField={activeField}
-        waterDemandLiters={telemetryData?.cropDemand?.waterDemandLiters || 350000}
+        waterDemandLiters={telemetryData?.cropDemand?.waterDemandLiters || 45000}
       />
 
-      {/* Stats, Agronomic, ML & Spray Action Panel (Left) */}
-      <StatsPanel
+      {/* Floating Active Field Badge (Clean Top-Left, only when field is drawn) */}
+      <FieldSummaryBadge
         field={activeField}
+        cropName={activeCropDisplay}
+        isGeneratingGrid={isGeneratingGrid}
         gridData={gridData}
         onGenerateGrid={handleGenerateGrid}
-        isGeneratingGrid={isGeneratingGrid}
-        isIrrigating={isIrrigating}
-        onStartIrrigation={handleStartIrrigation}
-        onStopIrrigation={handleStopIrrigation}
-        onTelemetryUpdated={(data) => setTelemetryData(data)}
-        telemetryData={telemetryData}
-        selectedCrop={selectedCrop}
-        onSelectCrop={handleCropChange}
-        growthStage={growthStage}
-        onSelectGrowthStage={handleStageChange}
-        irrigationMethod={irrigationMethod}
-        onSelectIrrigationMethod={handleMethodChange}
-        flowRate={flowRate}
-        onFlowRateChange={handleFlowRateChange}
-        flowRateUnit={flowRateUnit}
-        onFlowRateUnitChange={handleFlowRateUnitChange}
-        onOpenCropModal={() => setIsCropInfoOpen(true)}
-        onOpenWaterUsageModal={() => setIsWaterUsageOpen(true)}
-        onOpenSproutModal={() => setIsSproutAIOpen(true)}
+        onOpenWaterUsage={() => {
+          if (!telemetryData && activeField) {
+            fetchTelemetryForField();
+          }
+          setIsWaterUsageOpen(true);
+        }}
+        onClearField={handleFieldCleared}
       />
 
-      {/* WaterWise Signature Bottom Dock */}
+      {/* WaterWise Signature Floating Bottom Dock */}
       <WaterWiseDock
         onOpenCropInfo={() => setIsCropInfoOpen(true)}
-        onOpenLocation={() => {
-          // Cycle through the Sri Lankan agricultural presets
-          const currentIndex = selectedPreset
-            ? PRESET_FARMLANDS.findIndex((p) => p.name === selectedPreset.name)
-            : -1;
-          const nextPreset = PRESET_FARMLANDS[(currentIndex + 1) % PRESET_FARMLANDS.length];
-          setSelectedPreset(nextPreset);
-        }}
+        onOpenLocation={() => setIsLocationModalOpen(true)}
         onOpenWaterUsage={() => {
           if (!telemetryData && activeField) {
             fetchTelemetryForField();
@@ -294,11 +264,48 @@ export default function Home() {
         hasActiveField={!!activeField}
       />
 
-      {/* Sustainability Ticker (Bottom Right) */}
-      <SustainabilityTicker
-        metrics={tickerMetrics}
-        onOpenExport={() => setIsExportOpen(true)}
-      />
+      {/* Optional Slide-Over Diagnostics Drawer (Only when opened on demand) */}
+      {isDiagnosticsOpen && (
+        <div className="fixed inset-y-0 left-0 z-[1500] w-[440px] max-w-[90vw] bg-slate-950/95 backdrop-blur-2xl border-r border-cyan-500/30 p-5 shadow-2xl overflow-y-auto animate-in slide-in-from-left duration-300">
+          <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
+            <div className="flex items-center space-x-2">
+              <Layers className="w-5 h-5 text-cyan-400" />
+              <h3 className="font-bold text-slate-100 text-sm">Detailed Agronomic Diagnostics</h3>
+            </div>
+            <button
+              onClick={() => setIsDiagnosticsOpen(false)}
+              className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <StatsPanel
+            field={activeField}
+            gridData={gridData}
+            onGenerateGrid={handleGenerateGrid}
+            isGeneratingGrid={isGeneratingGrid}
+            isIrrigating={isIrrigating}
+            onStartIrrigation={handleStartIrrigation}
+            onStopIrrigation={handleStopIrrigation}
+            onTelemetryUpdated={(data) => setTelemetryData(data)}
+            telemetryData={telemetryData}
+            selectedCrop={selectedCrop}
+            onSelectCrop={handleCropChange}
+            growthStage={growthStage}
+            onSelectGrowthStage={handleStageChange}
+            irrigationMethod={irrigationMethod}
+            onSelectIrrigationMethod={handleMethodChange}
+            flowRate={flowRate}
+            onFlowRateChange={handleFlowRateChange}
+            flowRateUnit={flowRateUnit}
+            onFlowRateUnitChange={handleFlowRateUnitChange}
+            onOpenCropModal={() => setIsCropInfoOpen(true)}
+            onOpenWaterUsageModal={() => setIsWaterUsageOpen(true)}
+            onOpenSproutModal={() => setIsSproutAIOpen(true)}
+          />
+        </div>
+      )}
 
       {/* WaterWise Modal 1: 35+ Crop Info & Pump Flow Rate Setup */}
       <CropInfoModal
@@ -319,12 +326,21 @@ export default function Home() {
         }}
       />
 
-      {/* WaterWise Modal 2: 7-Day Watering Calendar & Pump Runtime */}
+      {/* WaterWise Modal 2: Set Farm Location (Lat/Long + Sri Lanka Zones) */}
+      <FarmLocationModal
+        isOpen={isLocationModalOpen}
+        onClose={() => setIsLocationModalOpen(false)}
+        currentPreset={selectedPreset}
+        onSelectLocation={handleSelectPreset}
+      />
+
+      {/* WaterWise Modal 3: 7-Day Watering Calendar, Pump Runtime & ML Moisture */}
       <WaterUsageModal
         isOpen={isWaterUsageOpen}
         onClose={() => setIsWaterUsageOpen(false)}
         field={activeField}
         telemetryData={telemetryData}
+        gridData={gridData}
         flowRate={flowRate}
         flowRateUnit={flowRateUnit}
         onTriggerSpray={() => {
@@ -333,7 +349,7 @@ export default function Home() {
         }}
       />
 
-      {/* WaterWise Modal 3: Sprout AI Agronomist Copilot */}
+      {/* WaterWise Modal 4: Sprout AI Agronomist Copilot */}
       <SproutAICopilot
         isOpen={isSproutAIOpen}
         onClose={() => setIsSproutAIOpen(false)}

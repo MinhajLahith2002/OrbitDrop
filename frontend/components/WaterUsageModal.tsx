@@ -1,14 +1,15 @@
 "use client";
 
 import React from "react";
-import { X, Droplets, Clock, Calendar, ShieldAlert, Sparkles, Waves } from "lucide-react";
-import { FieldData } from "@/types/geo";
+import { X, Droplets, Clock, Calendar, ShieldAlert, Sparkles, Waves, Cpu, BarChart3, CloudRain } from "lucide-react";
+import { FieldData, DownscalingResult } from "@/types/geo";
 
 interface WaterUsageModalProps {
   isOpen: boolean;
   onClose: () => void;
   field: FieldData | null;
   telemetryData: any;
+  gridData?: DownscalingResult | null;
   flowRate: number;
   flowRateUnit: "gpm" | "lpm";
   onTriggerSpray?: () => void;
@@ -19,6 +20,7 @@ export default function WaterUsageModal({
   onClose,
   field,
   telemetryData,
+  gridData,
   flowRate,
   flowRateUnit,
   onTriggerSpray,
@@ -31,6 +33,7 @@ export default function WaterUsageModal({
   const pumpRuntime = telemetryData?.pumpRuntime?.formatted || "1h 35m";
   const isLockout = telemetryData?.rainLockout?.isLockoutActive || false;
   const forecastRainMm = telemetryData?.rainLockout?.totalForecastRain48h_mm || 0;
+  const hourlyRain = telemetryData?.rainLockout?.hourlyRainNext24h || [];
 
   // Use 7-day schedule from backend telemetry, or generate fallback
   const schedule = telemetryData?.sevenDaySchedule || [
@@ -100,6 +103,83 @@ export default function WaterUsageModal({
               </div>
             </div>
           </div>
+
+          {/* ML Soil Moisture Downscaling Summary (Colab-Trained Model) */}
+          {gridData && (
+            <div className="bg-slate-900/90 p-3.5 rounded-xl border border-cyan-500/30 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <div className="w-6 h-6 rounded-lg bg-cyan-950 border border-cyan-500/40 flex items-center justify-center">
+                    <Cpu className="w-3.5 h-3.5 text-cyan-400" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-slate-100 flex items-center space-x-2">
+                      <span>ML Soil Moisture Downscaling</span>
+                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-400 border border-emerald-500/30 font-mono">
+                        R² = 0.9688
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-slate-400">
+                      Downscaled 30m resolution across {gridData.totalCells} grid points
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs font-mono font-bold text-cyan-300">
+                    Avg Moisture: {gridData.averageMoisture.toFixed(1)}%
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 text-center text-[10px]">
+                <div className="bg-red-950/30 border border-red-500/30 p-2 rounded-lg">
+                  <div className="text-red-400 font-bold text-xs">{gridData.criticalCount} Cells</div>
+                  <div className="text-slate-400">Critical Dry (&lt;16%)</div>
+                </div>
+                <div className="bg-amber-950/30 border border-amber-500/30 p-2 rounded-lg">
+                  <div className="text-amber-400 font-bold text-xs">{gridData.warningCount} Cells</div>
+                  <div className="text-slate-400">Moderate (16-24%)</div>
+                </div>
+                <div className="bg-emerald-950/30 border border-emerald-500/30 p-2 rounded-lg">
+                  <div className="text-emerald-400 font-bold text-xs">{gridData.optimalCount} Cells</div>
+                  <div className="text-slate-400">Optimal (&gt;24%)</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 24-Hour Rainfall Forecast Chart */}
+          {hourlyRain.length > 0 && (
+            <div className="bg-slate-900/70 p-3 rounded-xl border border-slate-800">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-slate-200 flex items-center space-x-1.5">
+                  <CloudRain className="w-3.5 h-3.5 text-sky-400" />
+                  <span>24-Hour Rain Forecast</span>
+                </span>
+                <span className="text-[10px] font-mono text-sky-300">
+                  Total 48h: {forecastRainMm} mm
+                </span>
+              </div>
+              <div className="h-14 flex items-end space-x-1 bg-slate-950 p-2 rounded-lg border border-slate-800/80 overflow-x-auto">
+                {hourlyRain.slice(0, 16).map((h: any, idx: number) => {
+                  const maxRain = 10;
+                  const heightPercent = Math.min((h.rain_mm / maxRain) * 100, 100);
+                  return (
+                    <div key={idx} className="flex-1 flex flex-col items-center min-w-[18px]">
+                      <div
+                        className={`w-full rounded-t ${h.rain_mm > 0 ? "bg-sky-400" : "bg-slate-800"}`}
+                        style={{ height: `${Math.max(heightPercent, 10)}%` }}
+                        title={`${h.hourLabel}: ${h.rain_mm} mm`}
+                      />
+                      <span className="text-[7px] text-slate-500 mt-1">
+                        {idx % 3 === 0 ? h.hourLabel.replace(":00", "") : ""}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Rain Lockout Alert if active */}
           {isLockout && (
