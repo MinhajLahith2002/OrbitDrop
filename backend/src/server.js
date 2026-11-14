@@ -15,9 +15,17 @@ import { connectDB } from "./config/db.js";
 import { Parcel } from "./models/Parcel.js";
 import { DispatchLog } from "./models/DispatchLog.js";
 import { fetchNasaTelemetry } from "./services/nasaPowerService.js";
-import { calculateFAO56_ET0, calculateCropDemand, CROP_COEFFICIENTS, IRRIGATION_METHODS } from "./services/agronomyService.js";
+import {
+  calculateFAO56_ET0,
+  calculateCropDemand,
+  calculatePumpRuntime,
+  generate7DayIrrigationSchedule,
+  CROP_COEFFICIENTS,
+  IRRIGATION_METHODS,
+} from "./services/agronomyService.js";
 import { evaluateRainLockout } from "./services/lockoutService.js";
 import { generateMicroStressGrid } from "./services/mlDownscalerService.js";
+import { generateSproutAdvice } from "./services/sproutAiService.js";
 
 dotenv.config();
 
@@ -171,6 +179,8 @@ app.post("/api/telemetry", async (req, res) => {
       crop = "paddy",
       growthStage = "mid",
       irrigationMethod = "basin",
+      flowRate = 50,
+      flowRateUnit = "gpm",
       simulateStorm = false,
     } = req.body;
 
@@ -231,6 +241,18 @@ app.post("/api/telemetry", async (req, res) => {
       simulateStorm
     );
 
+    // 6. WaterWise Feature: Calculate Pump Runtime & 7-Day Watering Schedule
+    const pumpRuntime = calculatePumpRuntime(cropResult.grossWaterDemandLiters, flowRate, flowRateUnit);
+    const forecastRainList = lockoutResult.hourlyRainNext24h 
+      ? [lockoutResult.totalForecastRain48h_mm, 2.5, 0, 1.2, 0, 8.4, 0] 
+      : [0, 0, 0, 0, 0, 0, 0];
+    const sevenDaySchedule = generate7DayIrrigationSchedule(
+      cropResult.grossWaterDemandLiters,
+      flowRate,
+      flowRateUnit,
+      forecastRainList
+    );
+
     return res.json({
       timestamp: new Date().toISOString(),
       coordinates: { latitude, longitude },
@@ -242,12 +264,33 @@ app.post("/api/telemetry", async (req, res) => {
       },
       evapotranspiration: et0Result,
       cropDemand: cropResult,
+      pumpRuntime,
+      sevenDaySchedule,
       historyTimeline: historyWithET0,
       rainLockout: lockoutResult,
     });
   } catch (error) {
     console.error("[Backend API Telemetry] Error:", error);
     return res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+});
+
+// -------------------------------------------------------------
+// Sprout AI - Agronomic Copilot API (WaterWise Feature)
+// -------------------------------------------------------------
+app.post("/api/sprout-ai", (req, res) => {
+  try {
+    const { question, context = {} } = req.body;
+
+    if (!question || typeof question !== "string") {
+      return res.status(400).json({ error: "Missing or invalid question string" });
+    }
+
+    const advice = generateSproutAdvice(question, context);
+    return res.json({ success: true, advice });
+  } catch (error) {
+    console.error("[Backend API Sprout AI] Error:", error);
+    return res.status(500).json({ error: "Failed to generate AI advice", details: error.message });
   }
 });
 

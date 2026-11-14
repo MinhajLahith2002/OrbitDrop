@@ -3,11 +3,16 @@
 import React, { useState } from "react";
 import dynamic from "next/dynamic";
 import Header from "@/components/Header";
-import PresetsBar from "@/components/PresetsBar";
+import PresetsBar, { PRESET_FARMLANDS } from "@/components/PresetsBar";
 import StatsPanel from "@/components/StatsPanel";
 import SustainabilityTicker from "@/components/SustainabilityTicker";
 import ExportModal from "@/components/ExportModal";
+import CropInfoModal from "@/components/CropInfoModal";
+import WaterUsageModal from "@/components/WaterUsageModal";
+import SproutAICopilot from "@/components/SproutAICopilot";
+import WaterWiseDock from "@/components/WaterWiseDock";
 import { FieldData, PresetLocation, DownscalingResult } from "@/types/geo";
+import { CROP_COEFFICIENTS } from "@/lib/services/agronomyService";
 
 // Dynamically import MapComponent to disable server-side rendering for Leaflet & Canvas
 const MapComponent = dynamic(() => import("@/components/MapComponent"), {
@@ -29,14 +34,57 @@ export default function Home() {
   const [isIrrigating, setIsIrrigating] = useState(false);
   const [telemetryData, setTelemetryData] = useState<any>(null);
   const [isExportOpen, setIsExportOpen] = useState(false);
-  const [selectedPreset, setSelectedPreset] = useState<PresetLocation | null>(
-    null
-  );
+  const [selectedPreset, setSelectedPreset] = useState<PresetLocation | null>(null);
+
+  // WaterWise Modals & Configuration State
+  const [isCropInfoOpen, setIsCropInfoOpen] = useState(false);
+  const [isWaterUsageOpen, setIsWaterUsageOpen] = useState(false);
+  const [isSproutAIOpen, setIsSproutAIOpen] = useState(false);
+
+  const [selectedCrop, setSelectedCrop] = useState("paddy");
+  const [growthStage, setGrowthStage] = useState("mid");
+  const [irrigationMethod, setIrrigationMethod] = useState("basin");
+  const [flowRate, setFlowRate] = useState(50);
+  const [flowRateUnit, setFlowRateUnit] = useState<"gpm" | "lpm">("gpm");
+
+  const fetchTelemetryForField = async (
+    targetField = activeField,
+    crop = selectedCrop,
+    stage = growthStage,
+    method = irrigationMethod,
+    rate = flowRate,
+    unit = flowRateUnit
+  ) => {
+    if (!targetField) return;
+    try {
+      const response = await fetch("/api/telemetry", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          latitude: targetField.centroid.lat,
+          longitude: targetField.centroid.lng,
+          areaHectares: targetField.areaHectares,
+          crop,
+          growthStage: stage,
+          irrigationMethod: method,
+          flowRate: rate,
+          flowRateUnit: unit,
+        }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setTelemetryData(data);
+      }
+    } catch (err) {
+      console.error("Auto-fetch telemetry error:", err);
+    }
+  };
 
   const handleFieldCreated = (field: FieldData) => {
     setActiveField(field);
     setGridData(null);
     setIsIrrigating(false);
+    fetchTelemetryForField(field);
   };
 
   const handleFieldCleared = () => {
@@ -91,7 +139,7 @@ export default function Home() {
 
   const handleStartIrrigation = () => {
     if (!activeField) {
-      alert("Please draw an agricultural parcel first!");
+      alert("Please draw an agricultural parcel or select a preset first!");
       return;
     }
     setIsIrrigating(true);
@@ -105,7 +153,44 @@ export default function Home() {
     setIsIrrigating(false);
   };
 
-  // Derive metrics for the Phase 6 Sustainability Ticker
+  const handleCropChange = (crop: string) => {
+    setSelectedCrop(crop);
+    if (activeField) {
+      fetchTelemetryForField(activeField, crop, growthStage, irrigationMethod, flowRate, flowRateUnit);
+    }
+  };
+
+  const handleStageChange = (stage: string) => {
+    setGrowthStage(stage);
+    if (activeField) {
+      fetchTelemetryForField(activeField, selectedCrop, stage, irrigationMethod, flowRate, flowRateUnit);
+    }
+  };
+
+  const handleMethodChange = (method: string) => {
+    setIrrigationMethod(method);
+    if (activeField) {
+      fetchTelemetryForField(activeField, selectedCrop, growthStage, method, flowRate, flowRateUnit);
+    }
+  };
+
+  const handleFlowRateChange = (rate: number) => {
+    setFlowRate(rate);
+    if (activeField) {
+      fetchTelemetryForField(activeField, selectedCrop, growthStage, irrigationMethod, rate, flowRateUnit);
+    }
+  };
+
+  const handleFlowRateUnitChange = (unit: "gpm" | "lpm") => {
+    setFlowRateUnit(unit);
+    if (activeField) {
+      fetchTelemetryForField(activeField, selectedCrop, growthStage, irrigationMethod, flowRate, unit);
+    }
+  };
+
+  const activeCropDisplay = CROP_COEFFICIENTS[selectedCrop]?.name || selectedCrop.toUpperCase();
+
+  // Derive metrics for the Sustainability Ticker
   const tickerMetrics = telemetryData ? {
     waterSavedLiters: telemetryData.rainLockout?.sustainabilityImpact?.waterSavedLiters || 0,
     waterSavedAcreFeet: telemetryData.rainLockout?.sustainabilityImpact?.waterSavedAcreFeet || 0,
@@ -129,7 +214,7 @@ export default function Home() {
   } : null;
 
   return (
-    <main className="relative w-screen h-screen overflow-hidden bg-slate-950">
+    <main className="relative w-screen h-screen overflow-hidden bg-slate-950 font-sans">
       {/* Top Header */}
       <Header
         activeFieldPresent={!!activeField}
@@ -140,7 +225,7 @@ export default function Home() {
       {/* Farmland Quick Jumps */}
       <PresetsBar onSelectPreset={handleSelectPreset} />
 
-      {/* Interactive Map Core with HTML5 Canvas Water Splash (Phase 5) */}
+      {/* Interactive Map Core with HTML5 Canvas Water Splash */}
       <MapComponent
         onFieldCreated={handleFieldCreated}
         onFieldCleared={handleFieldCleared}
@@ -153,7 +238,7 @@ export default function Home() {
         waterDemandLiters={telemetryData?.cropDemand?.waterDemandLiters || 350000}
       />
 
-      {/* Stats, Agronomic, ML & Spray Action Panel */}
+      {/* Stats, Agronomic, ML & Spray Action Panel (Left) */}
       <StatsPanel
         field={activeField}
         gridData={gridData}
@@ -163,15 +248,102 @@ export default function Home() {
         onStartIrrigation={handleStartIrrigation}
         onStopIrrigation={handleStopIrrigation}
         onTelemetryUpdated={(data) => setTelemetryData(data)}
+        telemetryData={telemetryData}
+        selectedCrop={selectedCrop}
+        onSelectCrop={handleCropChange}
+        growthStage={growthStage}
+        onSelectGrowthStage={handleStageChange}
+        irrigationMethod={irrigationMethod}
+        onSelectIrrigationMethod={handleMethodChange}
+        flowRate={flowRate}
+        onFlowRateChange={handleFlowRateChange}
+        flowRateUnit={flowRateUnit}
+        onFlowRateUnitChange={handleFlowRateUnitChange}
+        onOpenCropModal={() => setIsCropInfoOpen(true)}
+        onOpenWaterUsageModal={() => setIsWaterUsageOpen(true)}
+        onOpenSproutModal={() => setIsSproutAIOpen(true)}
       />
 
-      {/* Phase 6: Sustainability Ticker (Bottom Right) */}
+      {/* WaterWise Signature Bottom Dock */}
+      <WaterWiseDock
+        onOpenCropInfo={() => setIsCropInfoOpen(true)}
+        onOpenLocation={() => {
+          // Cycle through the Sri Lankan agricultural presets
+          const currentIndex = selectedPreset
+            ? PRESET_FARMLANDS.findIndex((p) => p.name === selectedPreset.name)
+            : -1;
+          const nextPreset = PRESET_FARMLANDS[(currentIndex + 1) % PRESET_FARMLANDS.length];
+          setSelectedPreset(nextPreset);
+        }}
+        onOpenWaterUsage={() => {
+          if (!telemetryData && activeField) {
+            fetchTelemetryForField();
+          }
+          setIsWaterUsageOpen(true);
+        }}
+        onOpenSproutAI={() => setIsSproutAIOpen(true)}
+        onToggleSpray={() => {
+          if (isIrrigating) {
+            handleStopIrrigation();
+          } else {
+            handleStartIrrigation();
+          }
+        }}
+        isIrrigating={isIrrigating}
+        activeCropName={activeCropDisplay}
+        hasActiveField={!!activeField}
+      />
+
+      {/* Sustainability Ticker (Bottom Right) */}
       <SustainabilityTicker
         metrics={tickerMetrics}
         onOpenExport={() => setIsExportOpen(true)}
       />
 
-      {/* Phase 6: 1-Click Export Prescription Plan Modal (GeoJSON / PDF) */}
+      {/* WaterWise Modal 1: 35+ Crop Info & Pump Flow Rate Setup */}
+      <CropInfoModal
+        isOpen={isCropInfoOpen}
+        onClose={() => setIsCropInfoOpen(false)}
+        selectedCrop={selectedCrop}
+        onSelectCrop={handleCropChange}
+        growthStage={growthStage}
+        onSelectGrowthStage={handleStageChange}
+        irrigationMethod={irrigationMethod}
+        onSelectIrrigationMethod={handleMethodChange}
+        flowRate={flowRate}
+        onFlowRateChange={handleFlowRateChange}
+        flowRateUnit={flowRateUnit}
+        onFlowRateUnitChange={handleFlowRateUnitChange}
+        onStartDrawing={() => {
+          setIsCropInfoOpen(false);
+        }}
+      />
+
+      {/* WaterWise Modal 2: 7-Day Watering Calendar & Pump Runtime */}
+      <WaterUsageModal
+        isOpen={isWaterUsageOpen}
+        onClose={() => setIsWaterUsageOpen(false)}
+        field={activeField}
+        telemetryData={telemetryData}
+        flowRate={flowRate}
+        flowRateUnit={flowRateUnit}
+        onTriggerSpray={() => {
+          setIsWaterUsageOpen(false);
+          handleStartIrrigation();
+        }}
+      />
+
+      {/* WaterWise Modal 3: Sprout AI Agronomist Copilot */}
+      <SproutAICopilot
+        isOpen={isSproutAIOpen}
+        onClose={() => setIsSproutAIOpen(false)}
+        field={activeField}
+        telemetryData={telemetryData}
+        selectedCrop={selectedCrop}
+        growthStage={growthStage}
+      />
+
+      {/* 1-Click Export Prescription Plan Modal (GeoJSON / PDF) */}
       <ExportModal
         isOpen={isExportOpen}
         onClose={() => setIsExportOpen(false)}

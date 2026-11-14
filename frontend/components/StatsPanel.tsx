@@ -36,7 +36,9 @@ import {
   Cpu,
   Play,
   Square,
-  CheckCircle2
+  CheckCircle2,
+  Bot,
+  Sprout
 } from "lucide-react";
 import { FieldData, DownscalingResult } from "@/types/geo";
 
@@ -49,6 +51,20 @@ interface StatsPanelProps {
   onStartIrrigation: () => void;
   onStopIrrigation: () => void;
   onTelemetryUpdated?: (data: any) => void;
+  telemetryData?: any;
+  selectedCrop?: string;
+  onSelectCrop?: (crop: string) => void;
+  growthStage?: string;
+  onSelectGrowthStage?: (stage: string) => void;
+  irrigationMethod?: string;
+  onSelectIrrigationMethod?: (method: string) => void;
+  flowRate?: number;
+  onFlowRateChange?: (rate: number) => void;
+  flowRateUnit?: "gpm" | "lpm";
+  onFlowRateUnitChange?: (unit: "gpm" | "lpm") => void;
+  onOpenCropModal?: () => void;
+  onOpenWaterUsageModal?: () => void;
+  onOpenSproutModal?: () => void;
 }
 
 export default function StatsPanel({
@@ -60,6 +76,20 @@ export default function StatsPanel({
   onStartIrrigation,
   onStopIrrigation,
   onTelemetryUpdated,
+  telemetryData: externalTelemetryData,
+  selectedCrop: externalCrop,
+  onSelectCrop: externalSetCrop,
+  growthStage: externalStage,
+  onSelectGrowthStage: externalSetStage,
+  irrigationMethod: externalMethod,
+  onSelectIrrigationMethod: externalSetMethod,
+  flowRate: externalFlowRate,
+  onFlowRateChange: externalSetFlowRate,
+  flowRateUnit: externalFlowRateUnit,
+  onFlowRateUnitChange: externalSetFlowRateUnit,
+  onOpenCropModal,
+  onOpenWaterUsageModal,
+  onOpenSproutModal,
 }: StatsPanelProps) {
   const [copied, setCopied] = useState(false);
   const [showGeoJson, setShowGeoJson] = useState(false);
@@ -67,11 +97,36 @@ export default function StatsPanel({
   const [showHistoryTimeline, setShowHistoryTimeline] = useState(false);
   const [showRainForecast, setShowRainForecast] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [selectedCrop, setSelectedCrop] = useState("paddy");
-  const [growthStage, setGrowthStage] = useState("mid");
-  const [irrigationMethod, setIrrigationMethod] = useState("basin");
+
+  const [localCrop, setLocalCrop] = useState("paddy");
+  const [localStage, setLocalStage] = useState("mid");
+  const [localMethod, setLocalMethod] = useState("basin");
+  const [localFlowRate, setLocalFlowRate] = useState(50);
+  const [localFlowRateUnit, setLocalFlowRateUnit] = useState<"gpm" | "lpm">("gpm");
   const [simulateStorm, setSimulateStorm] = useState(false);
-  const [telemetryData, setTelemetryData] = useState<any>(null);
+  const [localTelemetryData, setLocalTelemetryData] = useState<any>(null);
+
+  const selectedCrop = externalCrop !== undefined ? externalCrop : localCrop;
+  const growthStage = externalStage !== undefined ? externalStage : localStage;
+  const irrigationMethod = externalMethod !== undefined ? externalMethod : localMethod;
+  const flowRate = externalFlowRate !== undefined ? externalFlowRate : localFlowRate;
+  const flowRateUnit = externalFlowRateUnit !== undefined ? externalFlowRateUnit : localFlowRateUnit;
+  const telemetryData = externalTelemetryData !== undefined ? externalTelemetryData : localTelemetryData;
+
+  const setSelectedCrop = (crop: string) => {
+    if (externalSetCrop) externalSetCrop(crop);
+    else setLocalCrop(crop);
+  };
+
+  const setGrowthStage = (stage: string) => {
+    if (externalSetStage) externalSetStage(stage);
+    else setLocalStage(stage);
+  };
+
+  const setIrrigationMethod = (method: string) => {
+    if (externalSetMethod) externalSetMethod(method);
+    else setLocalMethod(method);
+  };
 
   if (!field) {
     return (
@@ -100,6 +155,16 @@ export default function StatsPanel({
             <p>Click <strong>Calculate Water Needs</strong> to check satellite data and spray water only where needed.</p>
           </div>
         </div>
+
+        {onOpenCropModal && (
+          <button
+            onClick={onOpenCropModal}
+            className="w-full mt-3 py-2 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-cyan-300 text-xs font-semibold flex items-center justify-center space-x-2 transition-all"
+          >
+            <Sprout className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Select Crop & Pump Settings (35+ Crops)</span>
+          </button>
+        )}
       </div>
     );
   }
@@ -138,6 +203,8 @@ export default function StatsPanel({
           crop: selectedCrop,
           growthStage: growthStage,
           irrigationMethod: irrigationMethod,
+          flowRate: flowRate,
+          flowRateUnit: flowRateUnit,
           simulateStorm: isStorm,
         }),
       });
@@ -147,7 +214,7 @@ export default function StatsPanel({
       }
 
       const data = await response.json();
-      setTelemetryData(data);
+      setLocalTelemetryData(data);
       if (onTelemetryUpdated) {
         onTelemetryUpdated(data);
       }
@@ -333,13 +400,24 @@ export default function StatsPanel({
             <Leaf className="w-3.5 h-3.5 text-emerald-400" />
             <span>Crop & Watering Setup</span>
           </span>
-          <span className="text-[10px] text-slate-400">Settings</span>
+          {onOpenCropModal && (
+            <button
+              onClick={onOpenCropModal}
+              className="text-[10px] text-cyan-400 hover:text-cyan-300 underline font-semibold flex items-center space-x-1"
+            >
+              <span>35+ Crops</span>
+              <ArrowRight className="w-2.5 h-2.5" />
+            </button>
+          )}
         </div>
 
         <div>
-          <label className="text-[11px] text-slate-400 font-medium block mb-1">
-            Target Crop
-          </label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-[11px] text-slate-400 font-medium block">
+              Target Crop
+            </label>
+            <span className="text-[10px] font-mono text-cyan-300 font-bold uppercase">{selectedCrop}</span>
+          </div>
           <select
             value={selectedCrop}
             onChange={(e) => setSelectedCrop(e.target.value)}
@@ -348,10 +426,15 @@ export default function StatsPanel({
             <option value="paddy">🌾 Rice / Paddy (Maha/Yala Basins)</option>
             <option value="tea">🫖 Ceylon Tea (Nuwara Eliya / Kandy)</option>
             <option value="coconut">🌴 Coconut (Coconut Triangle)</option>
+            <option value="tomato">🍅 Tomato (Field / Greenhouse)</option>
+            <option value="potato">🥔 Potato (Upcountry Tubers)</option>
+            <option value="onion">🧅 Onion / Shallots (Jaffna Red Soil)</option>
             <option value="maize">🌽 Maize (Dry Zone Granary)</option>
-            <option value="chili">🌶️ Chili & Red Onion (Jaffna)</option>
-            <option value="vegetables">🥔 Upcountry Vegetables (Nuwara Eliya)</option>
+            <option value="chili">🌶️ Chili Pepper (Jaffna / Dry Zone)</option>
+            <option value="watermelon">🍉 Watermelon (Dry Zone)</option>
             <option value="cinnamon">🌿 Cinnamon & Spices (Wet Zone)</option>
+            <option value="banana">🍌 Banana Plantain</option>
+            <option value="sugarcane">🎋 Sugarcane</option>
           </select>
         </div>
 
@@ -577,6 +660,43 @@ export default function StatsPanel({
               <span className="font-bold text-sky-300 font-mono text-sm">
                 {telemetryData.cropDemand.grossWaterDemandLiters.toLocaleString()} Liters
               </span>
+            </div>
+
+            {/* WaterWise Pump Runtime */}
+            <div className="flex justify-between items-center text-xs pt-1.5 border-t border-slate-800/60 bg-cyan-950/30 -mx-1 px-2 py-1.5 rounded-lg border border-cyan-500/20">
+              <div>
+                <span className="text-cyan-200 font-bold flex items-center space-x-1">
+                  <span>Pump Runtime:</span>
+                </span>
+                <span className="text-[10px] text-slate-400 block">
+                  At {flowRate} {flowRateUnit.toUpperCase()} flow rate
+                </span>
+              </div>
+              <span className="font-extrabold text-amber-300 font-mono text-sm">
+                {telemetryData.pumpRuntime?.formatted || "1h 45m"}
+              </span>
+            </div>
+
+            {/* WaterWise Navigation Action Buttons */}
+            <div className="grid grid-cols-2 gap-2 pt-2">
+              {onOpenWaterUsageModal && (
+                <button
+                  onClick={onOpenWaterUsageModal}
+                  className="flex items-center justify-center space-x-1.5 px-2.5 py-2 rounded-xl bg-gradient-to-r from-cyan-950 to-sky-950 hover:from-cyan-900 hover:to-sky-900 border border-cyan-500/40 text-cyan-300 text-xs font-semibold shadow-md transition-all"
+                >
+                  <Calendar className="w-3.5 h-3.5" />
+                  <span>7-Day Schedule</span>
+                </button>
+              )}
+              {onOpenSproutModal && (
+                <button
+                  onClick={onOpenSproutModal}
+                  className="flex items-center justify-center space-x-1.5 px-2.5 py-2 rounded-xl bg-gradient-to-r from-emerald-950 to-teal-950 hover:from-emerald-900 hover:to-teal-900 border border-emerald-500/40 text-emerald-300 text-xs font-semibold shadow-md transition-all"
+                >
+                  <Bot className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Ask Sprout AI</span>
+                </button>
+              )}
             </div>
           </div>
         </div>

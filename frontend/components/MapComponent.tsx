@@ -274,9 +274,12 @@ export default function MapComponent({
   // Handle Preset Farmland FlyTo
   useEffect(() => {
     if (!mapInstanceRef.current || !selectedPreset) return;
+    const lat = selectedPreset.lat ?? (selectedPreset as any).center?.[0];
+    const lng = selectedPreset.lng ?? (selectedPreset as any).center?.[1];
+    if (lat === undefined || lng === undefined || isNaN(lat) || isNaN(lng)) return;
     mapInstanceRef.current.flyTo(
-      [selectedPreset.lat, selectedPreset.lng],
-      selectedPreset.zoom,
+      [lat, lng],
+      selectedPreset.zoom || 14,
       {
         duration: 1.8,
         easeLinearity: 0.25,

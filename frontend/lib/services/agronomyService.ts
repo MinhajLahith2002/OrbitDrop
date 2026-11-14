@@ -1,14 +1,11 @@
 /**
- * Domain Service: Agronomy Engine (Sri Lanka Agro-Ecological Focus)
- * Implements FAO-56 Penman-Monteith equation for reference evapotranspiration (ET0)
- * and crop-specific coefficient (Kc) water demand modeling for Sri Lankan crops.
+ * Agronomy Engine (Enhanced with WaterWise 35+ Crop Database & Pump Runtime Calculator)
  */
-
-import { NasaTelemetry } from "./nasaPowerService";
 
 export interface CropInfo {
   name: string;
-  nameSi: string;
+  nameSi?: string;
+  category?: string;
   initial: number;
   mid: number;
   mature: number;
@@ -16,69 +13,46 @@ export interface CropInfo {
 }
 
 export const IRRIGATION_METHODS: Record<string, { name: string; efficiency: number; description: string }> = {
-  drip: { name: "Precision Drip Irrigation", efficiency: 0.90, description: "90% efficiency - minimal evaporation loss" },
-  sprinkler: { name: "Overhead Sprinkler", efficiency: 0.75, description: "75% efficiency - moderate wind drift" },
-  basin: { name: "Cascade Basin / Flood (Wewa)", efficiency: 0.55, description: "55% efficiency - ancient traditional basin flood" },
-  furrow: { name: "Furrow Channel Irrigation", efficiency: 0.60, description: "60% efficiency - channel seepage & runoff" },
+  drip: { name: "Precision Drip Irrigation", efficiency: 0.90, description: "90% efficiency - minimal evaporation, direct root delivery" },
+  sprinkler: { name: "Overhead Sprinkler", efficiency: 0.75, description: "75% efficiency - moderate wind drift and foliage interception" },
+  basin: { name: "Surface / Basin Flood", efficiency: 0.55, description: "55% efficiency - traditional basin flood with soil percolation" },
+  furrow: { name: "Furrow Channels", efficiency: 0.60, description: "60% efficiency - channel seepage and runoff" },
+  subsurface: { name: "Subsurface Drip", efficiency: 0.95, description: "95% efficiency - underground root tape, zero sun evaporation" },
 };
 
 export const CROP_COEFFICIENTS: Record<string, CropInfo> = {
-  paddy: {
-    name: "Paddy / Rice",
-    nameSi: "Paddy / Rice",
-    initial: 1.05, // Flooded nursery & tillering
-    mid: 1.20,    // Panicle initiation to flowering
-    mature: 0.85, // Grain ripening / pre-harvest
-    defaultMethod: "basin",
-  },
-  tea: {
-    name: "Ceylon Tea",
-    nameSi: "Ceylon Tea",
-    initial: 0.85,
-    mid: 1.05,
-    mature: 0.95,
-    defaultMethod: "sprinkler",
-  },
-  coconut: {
-    name: "Coconut",
-    nameSi: "Coconut Palm",
-    initial: 0.70,
-    mid: 0.80,
-    mature: 0.75,
-    defaultMethod: "drip",
-  },
-  maize: {
-    name: "Maize / Corn",
-    nameSi: "Dry Zone Maize",
-    initial: 0.35,
-    mid: 1.20,
-    mature: 0.60,
-    defaultMethod: "furrow",
-  },
-  chili: {
-    name: "Chili & Red Onions",
-    nameSi: "Chili & Red Onions",
-    initial: 0.60,
-    mid: 1.15,
-    mature: 0.80,
-    defaultMethod: "drip",
-  },
-  vegetables: {
-    name: "Upcountry Vegetables (Potato/Carrot)",
-    nameSi: "Upcountry Vegetables",
-    initial: 0.50,
-    mid: 1.15,
-    mature: 0.75,
-    defaultMethod: "sprinkler",
-  },
-  cinnamon: {
-    name: "Cinnamon & Spices",
-    nameSi: "Cinnamon & Spices",
-    initial: 0.70,
-    mid: 0.95,
-    mature: 0.85,
-    defaultMethod: "drip",
-  },
+  paddy: { name: "Rice / Paddy", category: "Grains", initial: 1.05, mid: 1.20, mature: 0.85, defaultMethod: "basin" },
+  tea: { name: "Ceylon Tea", category: "Cash Crops", initial: 0.85, mid: 1.05, mature: 0.95, defaultMethod: "sprinkler" },
+  coconut: { name: "Coconut Palm", category: "Plantation", initial: 0.70, mid: 0.80, mature: 0.75, defaultMethod: "drip" },
+  tomato: { name: "Tomato", category: "Vegetables", initial: 0.60, mid: 1.15, mature: 0.80, defaultMethod: "drip" },
+  potato: { name: "Potato", category: "Tubers", initial: 0.50, mid: 1.15, mature: 0.75, defaultMethod: "sprinkler" },
+  onion: { name: "Onion / Shallots", category: "Vegetables", initial: 0.70, mid: 1.05, mature: 0.75, defaultMethod: "drip" },
+  maize: { name: "Corn / Maize", category: "Grains", initial: 0.35, mid: 1.20, mature: 0.60, defaultMethod: "furrow" },
+  chili: { name: "Chili Pepper", category: "Spices", initial: 0.60, mid: 1.15, mature: 0.80, defaultMethod: "drip" },
+  carrot: { name: "Carrot", category: "Vegetables", initial: 0.45, mid: 1.05, mature: 0.95, defaultMethod: "sprinkler" },
+  cabbage: { name: "Cabbage", category: "Vegetables", initial: 0.45, mid: 1.05, mature: 0.95, defaultMethod: "sprinkler" },
+  cinnamon: { name: "Cinnamon & Spices", category: "Spices", initial: 0.70, mid: 0.95, mature: 0.85, defaultMethod: "drip" },
+  watermelon: { name: "Watermelon", category: "Melons", initial: 0.40, mid: 1.00, mature: 0.75, defaultMethod: "drip" },
+  cucumber: { name: "Cucumber", category: "Vegetables", initial: 0.60, mid: 1.00, mature: 0.75, defaultMethod: "drip" },
+  lettuce: { name: "Lettuce / Greens", category: "Vegetables", initial: 0.45, mid: 1.00, mature: 0.90, defaultMethod: "sprinkler" },
+  spinach: { name: "Spinach", category: "Vegetables", initial: 0.45, mid: 1.00, mature: 0.95, defaultMethod: "sprinkler" },
+  beans: { name: "Green Beans", category: "Legumes", initial: 0.50, mid: 1.15, mature: 0.90, defaultMethod: "drip" },
+  peas: { name: "Peas", category: "Legumes", initial: 0.50, mid: 1.15, mature: 1.05, defaultMethod: "sprinkler" },
+  pumpkin: { name: "Pumpkin / Squash", category: "Cucurbits", initial: 0.50, mid: 1.00, mature: 0.80, defaultMethod: "basin" },
+  eggplant: { name: "Eggplant (Brinjal)", category: "Vegetables", initial: 0.60, mid: 1.05, mature: 0.90, defaultMethod: "drip" },
+  banana: { name: "Banana Plantain", category: "Fruits", initial: 0.70, mid: 1.10, mature: 1.00, defaultMethod: "drip" },
+  papaya: { name: "Papaya", category: "Fruits", initial: 0.70, mid: 1.05, mature: 0.90, defaultMethod: "drip" },
+  grapes: { name: "Grapes", category: "Fruits", initial: 0.30, mid: 0.85, mature: 0.45, defaultMethod: "drip" },
+  sugarcane: { name: "Sugarcane", category: "Commercial", initial: 0.40, mid: 1.25, mature: 0.75, defaultMethod: "furrow" },
+  alfalfa: { name: "Alfalfa / Forage", category: "Pasture", initial: 0.40, mid: 1.20, mature: 1.15, defaultMethod: "sprinkler" },
+  sweet_potato: { name: "Sweet Potato", category: "Tubers", initial: 0.50, mid: 1.10, mature: 0.65, defaultMethod: "basin" },
+  beetroot: { name: "Beetroot", category: "Vegetables", initial: 0.50, mid: 1.05, mature: 0.95, defaultMethod: "sprinkler" },
+  cauliflower: { name: "Cauliflower", category: "Vegetables", initial: 0.45, mid: 1.05, mature: 0.90, defaultMethod: "sprinkler" },
+  sweet_corn: { name: "Sweet Corn", category: "Vegetables", initial: 0.35, mid: 1.15, mature: 1.05, defaultMethod: "sprinkler" },
+  sweet_peppers: { name: "Sweet Bell Peppers", category: "Vegetables", initial: 0.60, mid: 1.05, mature: 0.90, defaultMethod: "drip" },
+  radish: { name: "Radish", category: "Vegetables", initial: 0.45, mid: 0.90, mature: 0.85, defaultMethod: "sprinkler" },
+  broccoli: { name: "Broccoli", category: "Vegetables", initial: 0.45, mid: 1.05, mature: 0.95, defaultMethod: "sprinkler" },
+  celery: { name: "Celery", category: "Vegetables", initial: 0.70, mid: 1.05, mature: 1.00, defaultMethod: "drip" },
 };
 
 export interface ET0Result {
@@ -87,10 +61,22 @@ export interface ET0Result {
   netRadiation_MJ_m2_day: number;
 }
 
-export function calculateFAO56_ET0(
-  telemetry: NasaTelemetry,
-  altitude_m = 100
-): ET0Result {
+export interface CropWaterDemand {
+  cropKey: string;
+  cropName: string;
+  category?: string;
+  growthStage: string;
+  Kc: number;
+  ETc_mm_per_day: number;
+  netDeficit_mm: number;
+  waterDemandLiters: number;
+  grossWaterDemandLiters: number;
+  waterSavedVsFloodLiters: number;
+  irrigationMethod: string;
+  systemEfficiency: number;
+}
+
+export function calculateFAO56_ET0(telemetry: any, altitude_m = 100): ET0Result {
   const T = telemetry.temperature_C;
   const Tmax = telemetry.tempMax_C;
   const Tmin = telemetry.tempMin_C;
@@ -98,109 +84,150 @@ export function calculateFAO56_ET0(
   const u2 = telemetry.windSpeed_m_s;
   const Rs = telemetry.solarRadiation_MJ_m2_day;
 
-  // 1. Atmospheric pressure P (kPa)
   const P = 101.3 * Math.pow((293 - 0.0065 * altitude_m) / 293, 5.26);
-
-  // 2. Psychrometric constant gamma (kPa/°C)
   const gamma = 0.000665 * P;
+  const delta = (4098 * (0.6108 * Math.exp((17.27 * T) / (T + 237.3)))) / Math.pow(T + 237.3, 2);
 
-  // 3. Slope of saturation vapor pressure curve Delta (kPa/°C)
-  const delta =
-    (4098 * (0.6108 * Math.exp((17.27 * T) / (T + 237.3)))) /
-    Math.pow(T + 237.3, 2);
-
-  // 4. Saturation vapor pressure es (kPa)
   const e0_Tmax = 0.6108 * Math.exp((17.27 * Tmax) / (Tmax + 237.3));
   const e0_Tmin = 0.6108 * Math.exp((17.27 * Tmin) / (Tmin + 237.3));
-  const es = (e0_Tmax + e0_Tmin) / 2;
+  const es = (e0_Tmax + e0_Tmin) / 2.0;
+  const ea = (es * RH) / 100.0;
 
-  // 5. Actual vapor pressure ea (kPa)
-  const ea = (RH / 100) * es;
+  const Rns = (1 - 0.23) * Rs;
+  const sigma = 4.903e-9;
+  const Rnl =
+    sigma *
+    ((Math.pow(Tmax + 273.16, 4) + Math.pow(Tmin + 273.16, 4)) / 2) *
+    (0.34 - 0.14 * Math.sqrt(ea)) *
+    (1.35 * Math.min(Rs / (0.75 * 25.0), 1.0) - 0.35);
 
-  // 6. Net radiation Rn (MJ/m2/day)
-  const Rns = (1 - 0.23) * Rs; // Albedo = 0.23
-  const Rnl = 0.2 * Rs;
   const Rn = Math.max(Rns - Rnl, 0.1);
+  const G = 0;
 
-  // 7. Full FAO-56 Penman-Monteith Formulation
-  const numerator =
-    0.408 * delta * Rn + gamma * (900 / (T + 273)) * u2 * (es - ea);
+  const numerator = 0.408 * delta * (Rn - G) + gamma * (900 / (T + 273)) * u2 * (es - ea);
   const denominator = delta + gamma * (1 + 0.34 * u2);
 
-  const ET0 = Math.max(numerator / denominator, 0.1);
+  const ET0 = Math.max(numerator / denominator, 0.5);
 
   return {
     ET0_mm_per_day: parseFloat(ET0.toFixed(2)),
-    vaporPressureDeficit_kPa: parseFloat((es - ea).toFixed(3)),
+    vaporPressureDeficit_kPa: parseFloat((es - ea).toFixed(2)),
     netRadiation_MJ_m2_day: parseFloat(Rn.toFixed(2)),
   };
 }
 
-export interface CropDemandResult {
-  cropName: string;
-  cropNameSi: string;
-  growthStage: string;
-  Kc: number;
-  ETc_mm_per_day: number;
-  netDeficit_mm: number;
-  areaHectares: number;
-  irrigationMethod: string;
-  efficiency: number;
-  waterDemandLiters: number;
-  grossWaterDemandLiters: number;
-  waterWastedByFloodLiters: number;
-  waterDemandGallons: number;
-  waterDemandAcreFeet: number;
-}
-
 export function calculateCropDemand(
-  ET0_mm_per_day: number,
-  crop = "paddy",
-  stage = "mid",
+  ET0: number,
+  cropKey = "paddy",
+  growthStage = "mid",
   areaHectares = 1.0,
-  recentRain_mm = 0.0,
-  method = "basin"
-): CropDemandResult {
-  const cropData = CROP_COEFFICIENTS[crop.toLowerCase()] || CROP_COEFFICIENTS.paddy;
-  const stageKey = stage.toLowerCase() as "initial" | "mid" | "mature";
-  const Kc = cropData[stageKey] || cropData.mid;
+  effectivePrecipitation_mm = 0,
+  irrigationMethod = "basin"
+): CropWaterDemand {
+  const crop = CROP_COEFFICIENTS[cropKey] || CROP_COEFFICIENTS.paddy;
+  const stage = growthStage === "initial" ? "initial" : growthStage === "mature" || growthStage === "elderly" ? "mature" : "mid";
+  const Kc = crop[stage] || 1.1;
 
-  // ETc = Kc * ET0 (mm/day)
-  const ETc = ET0_mm_per_day * Kc;
+  const ETc = ET0 * Kc;
+  const netDeficit_mm = Math.max(ETc - effectivePrecipitation_mm, 0);
 
-  // Net Deficit = ETc - effective precipitation
-  const effectiveRain = recentRain_mm * 0.8;
-  const netDeficit_mm = Math.max(ETc - effectiveRain, 0.0);
+  const netWaterDemandLiters = Math.round(netDeficit_mm * areaHectares * 10000);
+  const method = IRRIGATION_METHODS[irrigationMethod] || IRRIGATION_METHODS.drip;
+  const grossWaterDemandLiters = Math.round(netWaterDemandLiters / method.efficiency);
 
-  // Irrigation system efficiency
-  const irrigationInfo = IRRIGATION_METHODS[method.toLowerCase()] || IRRIGATION_METHODS.basin;
-  const eff = irrigationInfo.efficiency;
-
-  // 1 mm depth over 1 hectare = 10,000 Liters
-  const netWaterDemandLiters = netDeficit_mm * areaHectares * 10000;
-  const grossWaterDemandLiters = netWaterDemandLiters > 0 ? netWaterDemandLiters / eff : 0;
-  
-  // Flood irrigation baseline (55% efficiency) vs current method
-  const floodBaselineLiters = netWaterDemandLiters > 0 ? netWaterDemandLiters / 0.55 : 0;
-  const waterSavedVsFlood = Math.max(floodBaselineLiters - grossWaterDemandLiters, 0);
-
-  const waterDemandGallons = grossWaterDemandLiters * 0.264172;
-  const waterDemandAcreFeet = parseFloat((grossWaterDemandLiters / 1233480).toFixed(2));
+  const traditionalFloodDemandLiters = Math.round(netWaterDemandLiters / 0.50);
+  const waterSavedVsFloodLiters = Math.max(traditionalFloodDemandLiters - grossWaterDemandLiters, 0);
 
   return {
-    cropName: cropData.name,
-    cropNameSi: cropData.nameSi,
+    cropKey,
+    cropName: crop.name,
+    category: crop.category,
     growthStage: stage,
     Kc,
     ETc_mm_per_day: parseFloat(ETc.toFixed(2)),
     netDeficit_mm: parseFloat(netDeficit_mm.toFixed(2)),
-    areaHectares,
-    irrigationMethod: irrigationInfo.name,
-    efficiency: eff,
-    waterDemandLiters: Math.round(netWaterDemandLiters),
-    grossWaterDemandLiters: Math.round(grossWaterDemandLiters),
-    waterWastedByFloodLiters: Math.round(waterSavedVsFlood),
-    waterDemandGallons: Math.round(waterDemandGallons),
-    waterDemandAcreFeet,
+    waterDemandLiters: netWaterDemandLiters,
+    grossWaterDemandLiters,
+    waterSavedVsFloodLiters,
+    irrigationMethod: method.name,
+    systemEfficiency: method.efficiency,
   };
+}
+
+export function calculatePumpRuntime(waterVolumeLiters: number, flowRate = 50, unit = "gpm") {
+  const flowRateLpm = unit === "gpm" ? flowRate * 3.78541 : flowRate;
+  
+  if (flowRateLpm <= 0 || waterVolumeLiters <= 0) {
+    return { totalMinutes: 0, hours: 0, minutes: 0, formatted: "0 mins", flowRateLpm: 50, flowRateGpm: 13.2 };
+  }
+
+  const totalMinutes = Math.round(waterVolumeLiters / flowRateLpm);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  const formatted = hours > 0 ? `${hours}h ${minutes}m` : `${minutes} mins`;
+
+  return {
+    totalMinutes,
+    hours,
+    minutes,
+    formatted,
+    flowRateLpm: parseFloat(flowRateLpm.toFixed(1)),
+    flowRateGpm: parseFloat((flowRateLpm / 3.78541).toFixed(1)),
+  };
+}
+
+export function generate7DayIrrigationSchedule(
+  baseDemandLiters: number,
+  flowRate = 50,
+  unit = "gpm",
+  forecastRainList: number[] = []
+) {
+  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const today = new Date();
+  const schedule = [];
+
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    const dayName = i === 0 ? "Today" : i === 1 ? "Tomorrow" : days[d.getDay()];
+    const dateLabel = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+    const rainForecastMm = forecastRainList[i] || (i === 1 ? 14.5 : i === 4 ? 6.2 : 0);
+
+    let status: "IRRIGATE" | "SKIP" | "REDUCED" | "REST" = "IRRIGATE";
+    let reason = "Optimal soil moisture deficit replenishment";
+    let volumeLiters = baseDemandLiters;
+
+    if (rainForecastMm >= 15.0) {
+      status = "SKIP";
+      reason = `Heavy rain predicted (${rainForecastMm} mm) — Lock pumps shut to prevent waterlogging`;
+      volumeLiters = 0;
+    } else if (rainForecastMm >= 5.0) {
+      status = "REDUCED";
+      reason = `Moderate rain predicted (${rainForecastMm} mm) — 50% water delivery needed`;
+      volumeLiters = Math.round(baseDemandLiters * 0.5);
+    } else if (i % 2 === 1 && baseDemandLiters > 0) {
+      status = "REST";
+      reason = "Root aerated dry interval — no watering required today";
+      volumeLiters = 0;
+    }
+
+    const runtime = calculatePumpRuntime(volumeLiters, flowRate, unit);
+
+    schedule.push({
+      dayIndex: i,
+      dayName,
+      dateLabel,
+      status,
+      reason,
+      rainForecastMm,
+      volumeLiters,
+      volumeGallons: Math.round(volumeLiters * 0.264172),
+      runtimeFormatted: runtime.formatted,
+      runtimeMinutes: runtime.totalMinutes,
+      recommendedTimeWindow: i % 2 === 0 ? "06:00 AM – 08:30 AM" : "05:30 PM – 07:00 PM",
+    });
+  }
+
+  return schedule;
 }

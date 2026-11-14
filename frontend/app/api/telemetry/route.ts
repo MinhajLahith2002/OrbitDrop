@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchNasaTelemetry } from "@/lib/services/nasaPowerService";
-import { calculateFAO56_ET0, calculateCropDemand } from "@/lib/services/agronomyService";
+import { calculateFAO56_ET0, calculateCropDemand, calculatePumpRuntime, generate7DayIrrigationSchedule } from "@/lib/services/agronomyService";
 import { evaluateRainLockout } from "@/lib/services/lockoutService";
 
 export async function POST(req: NextRequest) {
@@ -13,6 +13,8 @@ export async function POST(req: NextRequest) {
       crop = "paddy",
       growthStage = "mid",
       irrigationMethod = "basin",
+      flowRate = 50,
+      flowRateUnit = "gpm",
       simulateStorm = false,
     } = body;
 
@@ -76,6 +78,16 @@ export async function POST(req: NextRequest) {
       simulateStorm
     );
 
+    // 6. Calculate WaterWise Pump Runtime & 7-Day Irrigation Schedule
+    const pumpRuntime = calculatePumpRuntime(cropResult.grossWaterDemandLiters, flowRate, flowRateUnit);
+    const forecastRainList = lockoutResult.forecastTimeline?.map((item: any) => item.rain_mm) || [];
+    const sevenDaySchedule = generate7DayIrrigationSchedule(
+      cropResult.grossWaterDemandLiters,
+      flowRate,
+      flowRateUnit,
+      forecastRainList
+    );
+
     return NextResponse.json({
       timestamp: new Date().toISOString(),
       coordinates: { latitude, longitude },
@@ -87,6 +99,8 @@ export async function POST(req: NextRequest) {
       },
       evapotranspiration: et0Result,
       cropDemand: cropResult,
+      pumpRuntime,
+      sevenDaySchedule,
       historyTimeline: historyWithET0,
       rainLockout: lockoutResult,
     });
