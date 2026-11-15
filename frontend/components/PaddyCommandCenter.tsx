@@ -83,6 +83,13 @@ export default function PaddyCommandCenter({
   const recordedRainMm = telemetryData?.nasa?.telemetry?.precipitation_mm ?? 0;
   const nasaTelemetry = telemetryData?.nasa?.telemetry;
   const nasaDate = telemetryData?.nasa?.dataDate;
+  const formattedNasaDate = nasaDate && nasaDate.length === 8
+    ? new Date(
+        parseInt(nasaDate.slice(0, 4), 10),
+        parseInt(nasaDate.slice(4, 6), 10) - 1,
+        parseInt(nasaDate.slice(6, 8), 10)
+      ).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    : nasaDate;
 
   // Real crop daily thirst (ETc in Liters)
   const dailyThirstLiters = telemetryData?.cropDemand?.ETc_mm_per_day !== undefined
@@ -219,7 +226,10 @@ export default function PaddyCommandCenter({
           <div className="flex items-center space-x-2 flex-shrink-0">
             <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span className="font-semibold text-slate-200">
-              NASA Satellite Feed: {nasaDate ? `Observation Date ${nasaDate.slice(0,4)}-${nasaDate.slice(4,6)}-${nasaDate.slice(6,8)}` : "Synchronized"}
+              NASA Satellite Feed: {formattedNasaDate ? `${formattedNasaDate}` : "Synchronized"}
+            </span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 border border-slate-700/60 hidden sm:inline" title="NASA POWER Earth-observation satellites process global radiation and precipitation with a standard 3-5 day calibration cycle">
+              Latest Calibrated Pass (3–5d Latency)
             </span>
             {nasaTelemetry && (
               <span className="text-slate-400 font-mono hidden md:inline">
