@@ -219,6 +219,10 @@ export default function Home() {
         waterDemandLiters={telemetryData?.cropDemand?.waterDemandLiters || 45000}
         cropName={activeCropDisplay}
         selectedCrop={selectedCrop}
+        telemetryData={telemetryData}
+        flowRate={flowRate}
+        flowRateUnit={flowRateUnit}
+        growthStage={growthStage}
       />
 
       {/* Floating Active Field Badge (Clean Top-Left, only when field is drawn) */}

@@ -19,6 +19,10 @@ interface MapComponentProps {
   waterDemandLiters?: number;
   cropName?: string;
   selectedCrop?: string;
+  telemetryData?: any;
+  flowRate?: number;
+  flowRateUnit?: "gpm" | "lpm";
+  growthStage?: string;
 }
 
 // Raycasting Point-In-Polygon Algorithm
@@ -74,6 +78,10 @@ export default function MapComponent({
   waterDemandLiters = 500000,
   cropName = "Rice / Paddy",
   selectedCrop = "paddy",
+  telemetryData,
+  flowRate = 200,
+  flowRateUnit = "lpm",
+  growthStage = "mid",
 }: MapComponentProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -407,53 +415,180 @@ export default function MapComponent({
       const emoji = CROP_EMOJIS[selectedCrop || "paddy"] || "🌱";
       const displayName = cropName || activeField?.cropType || "Rice / Paddy";
 
+      // Live Telemetry Computations
+      const isLockout = Boolean(telemetryData?.lockout?.isLockout);
+      const grossLiters = telemetryData?.cropDemand?.grossWaterDemandLiters ?? (waterDemandLiters || 0);
+      const pumpRuntime = telemetryData?.pumpRuntime?.formatted || "0 mins";
+
+      let moistureNum = 24.8;
+      let moistureValue = "24.8%";
+      if (gridData && typeof gridData.averageMoisture === "number") {
+        moistureNum = gridData.averageMoisture;
+        moistureValue = `${moistureNum.toFixed(1)}%`;
+      } else if (telemetryData) {
+        moistureNum = 24.8;
+        moistureValue = "24.8%";
+      } else {
+        moistureValue = "Live Feed...";
+      }
+
+      let moistureColor = "#34d399";
+      let moistureBorder = "rgba(52, 211, 153, 0.4)";
+      if (moistureNum < 16) {
+        moistureColor = "#f87171";
+        moistureBorder = "rgba(248, 113, 113, 0.4)";
+      } else if (moistureNum < 24) {
+        moistureColor = "#fbbf24";
+        moistureBorder = "rgba(251, 191, 36, 0.4)";
+      }
+
+      let stageLabel = "Panicle Initiation & Flowering";
+      if (growthStage === "ini") stageLabel = "Tillering & Vegetative Stage";
+      if (growthStage === "late") stageLabel = "Grain Ripening & Terminal Drainage";
+
+      const statusBadge = isDrawnParcel ? "PARCEL ACTIVE" : "FARMLAND BASIN";
+      const netWaterDisplay = isLockout && grossLiters === 0 ? "0 L" : `${grossLiters.toLocaleString()} L`;
+      const pumpDisplay = isIrrigating ? "Active" : (isLockout ? "Paused" : pumpRuntime);
+
       const badgeHtml = `
-        <div style="
-          display: inline-flex;
-          align-items: center;
-          gap: 10px;
-          background: rgba(2, 6, 23, 0.94);
-          backdrop-filter: blur(14px);
-          -webkit-backdrop-filter: blur(14px);
-          border: 2px solid #10b981;
-          border-radius: 9999px;
-          padding: 6px 16px;
-          box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.8), 0 0 20px rgba(16, 185, 129, 0.45);
+        <div class="live-crop-badge" style="
+          display: flex;
+          flex-direction: column;
+          gap: 7px;
+          background: rgba(3, 10, 24, 0.95);
+          backdrop-filter: blur(16px);
+          -webkit-backdrop-filter: blur(16px);
+          border: 1.5px solid ${isIrrigating ? "#a855f7" : (isLockout ? "#0284c7" : "#10b981")};
+          border-radius: 16px;
+          padding: 9px 13px;
+          box-shadow: 0 12px 36px -4px rgba(0, 0, 0, 0.85), 0 0 25px ${isIrrigating ? "rgba(168, 85, 247, 0.45)" : (isLockout ? "rgba(2, 132, 199, 0.45)" : "rgba(16, 185, 129, 0.45)")};
           color: white;
           font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
           transform: translate(-50%, -50%);
           pointer-events: auto;
           cursor: pointer;
           user-select: none;
-          white-space: nowrap;
-          transition: transform 0.2s ease;
+          min-width: 300px;
+          max-width: 360px;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         ">
+          <!-- Top Row: Icon + Name & Basin + Live Satellite Beacon -->
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); padding-bottom: 7px;">
+            <div style="display: flex; align-items: center; gap: 9px;">
+              <div style="
+                width: 34px;
+                height: 34px;
+                border-radius: 10px;
+                background: linear-gradient(135deg, rgba(16, 185, 129, 0.22), rgba(6, 182, 212, 0.25));
+                border: 1px solid rgba(52, 211, 153, 0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 20px;
+                flex-shrink: 0;
+              ">
+                ${emoji}
+              </div>
+              <div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span style="font-size: 13px; font-weight: 800; color: #f8fafc; letter-spacing: -0.01em; line-height: 1.2;">
+                    ${displayName}
+                  </span>
+                  <span style="font-size: 8px; font-weight: 700; background: rgba(6, 182, 212, 0.2); color: #38bdf8; border: 1px solid rgba(6, 182, 212, 0.4); border-radius: 4px; padding: 1px 5px; letter-spacing: 0.04em;">
+                    ${statusBadge}
+                  </span>
+                </div>
+                <div style="font-size: 9.5px; font-family: ui-monospace, SFMono-Regular, monospace; color: #94a3b8; font-weight: 500; margin-top: 1px;">
+                  ${areaText}
+                </div>
+              </div>
+            </div>
+            
+            <!-- Live Satellite Pulsing Pill -->
+            <div style="
+              display: inline-flex;
+              align-items: center;
+              gap: 5px;
+              font-size: 8.5px;
+              font-weight: 800;
+              color: #34d399;
+              background: rgba(16, 185, 129, 0.15);
+              border: 1px solid rgba(52, 211, 153, 0.4);
+              border-radius: 9999px;
+              padding: 2.5px 7px;
+              letter-spacing: 0.04em;
+              white-space: nowrap;
+            ">
+              <span class="live-satellite-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
+              <span>LIVE</span>
+            </div>
+          </div>
+
+          <!-- Middle Row: 3 Live Telemetry HUD Chips -->
+          <div style="display: grid; grid-template-columns: 1fr 1.15fr 1fr; gap: 6px;">
+            <!-- 1. Live Soil Moisture Chip -->
+            <div style="
+              background: rgba(15, 23, 42, 0.85);
+              border: 1px solid ${moistureBorder};
+              border-radius: 8px;
+              padding: 4px 6px;
+              text-align: center;
+            ">
+              <div style="font-size: 7.5px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.03em;">
+                Moisture
+              </div>
+              <div style="font-size: 11px; font-weight: 800; color: ${moistureColor}; font-family: ui-monospace, SFMono-Regular, monospace; margin-top: 2px;">
+                ${moistureValue}
+              </div>
+            </div>
+
+            <!-- 2. Live Net Water Chip -->
+            <div style="
+              background: rgba(15, 23, 42, 0.85);
+              border: 1px solid ${isLockout ? "rgba(56, 189, 248, 0.4)" : "rgba(16, 185, 129, 0.4)"};
+              border-radius: 8px;
+              padding: 4px 6px;
+              text-align: center;
+            ">
+              <div style="font-size: 7.5px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.03em;">
+                Net Water
+              </div>
+              <div style="font-size: 11px; font-weight: 800; color: ${isLockout ? "#38bdf8" : "#34d399"}; font-family: ui-monospace, SFMono-Regular, monospace; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                ${netWaterDisplay}
+              </div>
+            </div>
+
+            <!-- 3. Live Pump Status Chip -->
+            <div style="
+              background: rgba(15, 23, 42, 0.85);
+              border: 1px solid ${isIrrigating ? "rgba(168, 85, 247, 0.5)" : (isLockout ? "rgba(148, 163, 184, 0.3)" : "rgba(250, 204, 21, 0.4)")};
+              border-radius: 8px;
+              padding: 4px 6px;
+              text-align: center;
+            ">
+              <div style="font-size: 7.5px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.03em;">
+                ${isIrrigating ? "Pumping" : "Pump Run"}
+              </div>
+              <div style="font-size: 11px; font-weight: 800; color: ${isIrrigating ? "#c084fc" : (isLockout ? "#94a3b8" : "#facc15")}; font-family: ui-monospace, SFMono-Regular, monospace; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                ${pumpDisplay}
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Row: Dynamic Agronomy / Lockout Subtitle -->
           <div style="
-            width: 32px;
-            height: 32px;
-            border-radius: 9999px;
-            background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(6, 182, 212, 0.3));
-            border: 1px solid rgba(52, 211, 153, 0.5);
             display: flex;
             align-items: center;
-            justify-content: center;
-            font-size: 19px;
-            flex-shrink: 0;
+            justify-content: space-between;
+            font-size: 8.5px;
+            color: ${isLockout ? "#38bdf8" : "#94a3b8"};
+            background: ${isLockout ? "rgba(2, 132, 199, 0.12)" : "rgba(255, 255, 255, 0.03)"};
+            border-radius: 6px;
+            padding: 3px 6px;
+            border: 1px dashed ${isLockout ? "rgba(56, 189, 248, 0.3)" : "rgba(255, 255, 255, 0.08)"};
           ">
-            ${emoji}
-          </div>
-          <div style="display: flex; flex-direction: column; text-align: left;">
-            <div style="display: flex; align-items: center; gap: 6px;">
-              <span style="font-size: 12.5px; font-weight: 800; color: #f8fafc; letter-spacing: -0.01em; line-height: 1.2;">
-                ${displayName}
-              </span>
-              <span style="font-size: 8.5px; font-weight: 700; background: rgba(6, 182, 212, 0.2); color: #38bdf8; border: 1px solid rgba(6, 182, 212, 0.4); border-radius: 4px; padding: 1px 4px; letter-spacing: 0.05em;">
-                ${isDrawnParcel ? "PARCEL ACTIVE" : "FARMLAND BASIN"}
-              </span>
-            </div>
-            <div style="font-size: 9.5px; font-family: ui-monospace, SFMono-Regular, monospace; color: #34d399; font-weight: 600; line-height: 1.2; margin-top: 2px;">
-              ${areaText}
-            </div>
+            <span>${isIrrigating ? "🌊 Active Infiltration Cycle" : (isLockout ? "⚡ 48h Rain Lockout (Saturated)" : `🌱 ${stageLabel}`)}</span>
+            <span style="font-family: ui-monospace, SFMono-Regular, monospace; font-weight: 600; color: #cbd5e1;">@ ${flowRate} ${flowRateUnit.toUpperCase()}</span>
           </div>
         </div>
       `;
@@ -477,7 +612,19 @@ export default function MapComponent({
     };
 
     renderCropBadge();
-  }, [mapReady, activeField, selectedCrop, cropName, selectedPreset]);
+  }, [
+    mapReady,
+    activeField,
+    selectedCrop,
+    cropName,
+    selectedPreset,
+    telemetryData,
+    gridData,
+    isIrrigating,
+    growthStage,
+    flowRate,
+    flowRateUnit,
+  ]);
 
   // Phase 5: HTML5 Canvas Water Splash / Spray Engine
   useEffect(() => {
