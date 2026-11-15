@@ -309,6 +309,12 @@ export default function Home() {
         field={activeField}
         telemetryData={telemetryData}
         gridData={gridData}
+        selectedCrop={selectedCrop}
+        growthStage={growthStage}
+        irrigationMethod={irrigationMethod}
+        flowRate={flowRate}
+        flowRateUnit={flowRateUnit}
+        selectedLocation={selectedPreset}
       />
     </main>
   );
