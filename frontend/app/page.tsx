@@ -119,7 +119,10 @@ export default function Home() {
 
   const handleSelectPreset = (preset: PresetLocation) => {
     setSelectedPreset(preset);
-    fetchTelemetry(activeField, preset, selectedCrop, growthStage, irrigationMethod, flowRate, flowRateUnit);
+    setActiveField(null);
+    setGridData(null);
+    setIsIrrigating(false);
+    fetchTelemetry(null, preset, selectedCrop, growthStage, irrigationMethod, flowRate, flowRateUnit);
   };
 
   const handleReset = () => {
