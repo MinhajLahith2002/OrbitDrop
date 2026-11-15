@@ -20,7 +20,8 @@ import {
   Navigation,
   Sparkles,
   Layers,
-  ArrowRight
+  ArrowRight,
+  Trash2
 } from "lucide-react";
 import { FieldData, PresetLocation, DownscalingResult } from "@/types/geo";
 import { CROP_COEFFICIENTS, IRRIGATION_METHODS } from "@/lib/services/agronomyService";
@@ -45,6 +46,7 @@ export interface PaddyCommandCenterProps {
   isIrrigating: boolean;
   onToggleSpray: () => void;
   onOpenSproutAI: () => void;
+  onClearField?: () => void;
   isExpanded?: boolean;
   onToggleExpand?: () => void;
 }
@@ -68,6 +70,7 @@ export default function PaddyCommandCenter({
   isIrrigating,
   onToggleSpray,
   onOpenSproutAI,
+  onClearField,
   isExpanded: isExpandedProp,
   onToggleExpand,
 }: PaddyCommandCenterProps) {
@@ -107,6 +110,7 @@ export default function PaddyCommandCenter({
   }, [selectedLocation]);
 
   // Calculations
+  const hasField = Boolean(field && field.areaHectares > 0);
   const cropInfo = CROP_COEFFICIENTS[selectedCrop] || CROP_COEFFICIENTS.paddy;
   const isPaddy = selectedCrop === "paddy";
 
@@ -124,13 +128,13 @@ export default function PaddyCommandCenter({
       ).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
     : nasaDate;
 
-  // Real crop daily thirst (ETc in Liters)
-  const dailyThirstLiters = telemetryData?.cropDemand?.ETc_mm_per_day !== undefined
-    ? Math.round(telemetryData.cropDemand.ETc_mm_per_day * (field ? field.areaHectares : 1.0) * 10000)
-    : 28100;
+  // Real crop daily thirst (ETc in Liters) - strictly 0 if no field drawn
+  const dailyThirstLiters = hasField && telemetryData?.cropDemand?.ETc_mm_per_day !== undefined
+    ? Math.round(telemetryData.cropDemand.ETc_mm_per_day * field!.areaHectares * 10000)
+    : 0;
 
   // Real gross water to pump (net deficit adjusted for irrigation hardware efficiency)
-  const grossWaterLiters = telemetryData?.cropDemand?.grossWaterDemandLiters !== undefined
+  const grossWaterLiters = hasField && telemetryData?.cropDemand?.grossWaterDemandLiters !== undefined
     ? telemetryData.cropDemand.grossWaterDemandLiters
     : dailyThirstLiters;
 
@@ -138,7 +142,7 @@ export default function PaddyCommandCenter({
 
   // Real-time responsive pump calculation based on current flow rate
   const flowRateLpm = flowRateUnit === "gpm" ? flowRate * 3.78541 : flowRate;
-  const rawMinutes = flowRateLpm > 0 && grossWaterLiters > 0 ? Math.round(grossWaterLiters / flowRateLpm) : 0;
+  const rawMinutes = hasField && flowRateLpm > 0 && grossWaterLiters > 0 ? Math.round(grossWaterLiters / flowRateLpm) : 0;
   const rawHours = Math.floor(rawMinutes / 60);
   const rawMins = rawMinutes % 60;
   const calculatedRuntimeFormatted = rawHours > 0 ? `${rawHours}h ${rawMins}m` : `${rawMins} mins`;
@@ -238,12 +242,31 @@ export default function PaddyCommandCenter({
             <div>
               <div className="flex items-center space-x-2">
                 <span className="font-bold text-sm text-slate-100">{cropInfo.name}</span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-500/30">
-                  {field ? `${field.areaHectares.toFixed(2)} ha (${field.areaAcres.toFixed(1)} ac)` : "1.0 ha Parcel"}
-                </span>
+                {hasField ? (
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-500/30 font-bold">
+                    {field.areaHectares.toFixed(2)} ha ({field.areaAcres.toFixed(1)} ac)
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-950/80 text-amber-300 border border-amber-500/40">
+                    ✏️ No Field Mapped
+                  </span>
+                )}
+                {hasField && onClearField && (
+                  <button
+                    type="button"
+                    onClick={onClearField}
+                    className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-900 hover:bg-rose-950/60 text-slate-400 hover:text-rose-300 border border-slate-800 hover:border-rose-500/40 transition-all flex items-center space-x-1"
+                    title="Delete drawn field boundary"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    <span className="hidden sm:inline">Clear Field</span>
+                  </button>
+                )}
               </div>
-              <p className="text-[11px] text-slate-400 truncate max-w-[280px]">
-                {stageName} · {selectedLocation?.name || "Polonnaruwa Basin"}
+              <p className="text-[11px] text-slate-400 truncate max-w-[320px]">
+                {hasField
+                  ? `${stageName} · ${selectedLocation?.name || "Polonnaruwa Basin"}`
+                  : "Draw boundary on satellite map to compute thirst & pump schedule"}
               </p>
             </div>
           </div>
@@ -252,19 +275,37 @@ export default function PaddyCommandCenter({
           <div className="hidden sm:flex items-center space-x-4 px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-800 text-xs">
             <div>
               <span className="text-[10px] text-slate-400 block">{isPaddy ? "Basin Depth" : "Root Zone"}</span>
-              <span className="font-bold text-cyan-300 font-mono text-sm">{dynamicDepthValue} cm</span>
+              <span className="font-bold font-mono text-sm">
+                {hasField ? (
+                  <span className="text-cyan-300">{dynamicDepthValue} cm</span>
+                ) : (
+                  <span className="text-slate-500">--</span>
+                )}
+              </span>
             </div>
             <div>
               <span className="text-[10px] text-slate-400 block">Net Water Needed</span>
-              <span className="font-bold text-sky-300 font-mono text-sm">
-                {effectiveLockout ? "0 L (Rain Saturated)" : `${grossWaterLiters.toLocaleString()} L`}
+              <span className="font-bold font-mono text-sm">
+                {hasField ? (
+                  <span className="text-sky-300">
+                    {effectiveLockout ? "0 L (Rain Saturated)" : `${grossWaterLiters.toLocaleString()} L`}
+                  </span>
+                ) : (
+                  <span className="text-slate-500">--</span>
+                )}
               </span>
             </div>
             <div className="border-l border-slate-800 pl-3">
               <span className="text-[10px] text-slate-400 block">Pump Run (@ {flowRate} {flowRateUnit.toUpperCase()})</span>
-              <span className="font-extrabold text-amber-300 font-mono text-sm flex items-center space-x-1">
-                <Clock className="w-3.5 h-3.5 text-amber-400" />
-                <span>{effectiveLockout ? "0 mins (Paused)" : calculatedRuntimeFormatted}</span>
+              <span className="font-extrabold font-mono text-sm flex items-center space-x-1">
+                <Clock className={`w-3.5 h-3.5 ${hasField ? (isIrrigating ? "text-emerald-400 animate-spin" : "text-amber-400") : "text-slate-500"}`} />
+                <span className={hasField ? (isIrrigating ? "text-emerald-300 animate-pulse" : "text-amber-300") : "text-slate-500"}>
+                  {hasField
+                    ? (isIrrigating 
+                        ? "PUMP ACTIVE (LIVE)" 
+                        : (effectiveLockout ? "0 mins (Paused)" : calculatedRuntimeFormatted))
+                    : "--"}
+                </span>
               </span>
             </div>
           </div>
@@ -278,12 +319,12 @@ export default function PaddyCommandCenter({
                 className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all shadow-md ${
                   isIrrigating
                     ? "bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/30 animate-pulse"
-                    : "bg-gradient-to-r from-cyan-500 via-sky-500 to-emerald-400 hover:from-cyan-400 hover:to-emerald-300 text-slate-950 shadow-cyan-500/25"
+                    : "bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 hover:from-emerald-300 hover:to-cyan-200 text-slate-950 shadow-emerald-500/25"
                 }`}
-                title="Dispatch water pump into paddy basin"
+                title={isIrrigating ? "Stop water pump" : "Start water pump into field"}
               >
                 <Waves className="w-3.5 h-3.5" />
-                <span>{isIrrigating ? "Halt Irrigation" : "Dispatch Irrigation"}</span>
+                <span>{isIrrigating ? "STOP WATER PUMP" : "START WATER PUMP"}</span>
               </button>
             )}
 
@@ -553,7 +594,7 @@ export default function PaddyCommandCenter({
             <div className="bg-slate-900/60 p-3.5 rounded-2xl border border-slate-800/90 space-y-3">
               <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                 <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                  <div className={`w-2 h-2 rounded-full ${hasField ? "bg-emerald-400" : "bg-amber-400 animate-pulse"}`} />
                   <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
                     2. Real-Time Irrigation Prescription & Weather Watchdog
                   </span>
@@ -563,8 +604,20 @@ export default function PaddyCommandCenter({
                 </span>
               </div>
 
-              {/* Rain Lockout Banner with Interactive Override */}
-              {isLockout ? (
+              {/* Rain Lockout Banner with Interactive Override OR Awaiting Boundary Banner */}
+              {!hasField ? (
+                <div className="p-3.5 rounded-xl bg-cyan-950/30 border border-cyan-500/40 flex items-start space-x-3 text-cyan-200">
+                  <MapPin className="w-5 h-5 text-cyan-400 flex-shrink-0 mt-0.5 animate-bounce" />
+                  <div className="text-xs">
+                    <div className="font-bold text-cyan-300">
+                      ✏️ Awaiting Field Boundary on Satellite Map
+                    </div>
+                    <div className="text-[11px] text-cyan-200/90 mt-0.5 leading-relaxed">
+                      Select the <strong>polygon</strong> or <strong>rectangle</strong> tool on the left toolbar to draw your parcel boundary on the map. OrbitDrop will compute your exact field acreage, soil moisture deficit, water thirst in Liters, and pump runtime.
+                    </div>
+                  </div>
+                </div>
+              ) : isLockout ? (
                 <div className={`p-3 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all ${
                   overrideLockout 
                     ? "bg-cyan-950/40 border-cyan-500/50 text-cyan-200" 
@@ -627,12 +680,14 @@ export default function PaddyCommandCenter({
                       FAO-56 Zr
                     </span>
                   </div>
-                  <div className="text-xl font-bold text-cyan-300 font-mono flex items-center space-x-2">
-                    <Gauge className="w-4 h-4 text-cyan-400" />
-                    <span>{dynamicDepthValue} {dynamicDepthUnit}</span>
+                  <div className="text-xl font-bold font-mono flex items-center space-x-2">
+                    <Gauge className={`w-4 h-4 ${hasField ? "text-cyan-400" : "text-slate-500"}`} />
+                    <span className={hasField ? "text-cyan-300" : "text-slate-500"}>
+                      {hasField ? `${dynamicDepthValue} ${dynamicDepthUnit}` : "--"}
+                    </span>
                   </div>
                   <span className="text-[10px] text-slate-500 block mt-1">
-                    {dynamicDepthNote}
+                    {hasField ? dynamicDepthNote : "Draw field boundary on map to set layer depth"}
                   </span>
                 </div>
 
@@ -643,13 +698,17 @@ export default function PaddyCommandCenter({
                       {systemEfficiency}% Delivery Eff
                     </span>
                   </div>
-                  <div className="text-xl font-bold text-sky-300 font-mono">
-                    {effectiveLockout ? "0 Liters (Rain Saturated)" : `${grossWaterLiters.toLocaleString()} Liters`}
+                  <div className={`text-xl font-bold font-mono ${hasField ? "text-sky-300" : "text-slate-500"}`}>
+                    {hasField
+                      ? (effectiveLockout ? "0 Liters (Rain Saturated)" : `${grossWaterLiters.toLocaleString()} Liters`)
+                      : "--"}
                   </div>
                   <span className="text-[10px] text-slate-400 block mt-1 font-mono">
-                    {effectiveLockout
-                      ? `⚡ Unpaused Crop Thirst: ${grossWaterLiters.toLocaleString()} L across ${field ? field.areaHectares.toFixed(2) : "1.0"} ha (Rain covers 100%)`
-                      : `Crop evapotranspiration deficit: ${dailyThirstLiters.toLocaleString()} L across ${field ? field.areaHectares.toFixed(2) : "1.0"} ha`}
+                    {hasField
+                      ? (effectiveLockout
+                          ? `⚡ Unpaused Crop Thirst: ${grossWaterLiters.toLocaleString()} L across ${field!.areaHectares.toFixed(2)} ha (Rain covers 100%)`
+                          : `Crop evapotranspiration deficit: ${dailyThirstLiters.toLocaleString()} L across ${field!.areaHectares.toFixed(2)} ha`)
+                      : "Awaiting parcel area calculation"}
                   </span>
                 </div>
 
@@ -660,14 +719,20 @@ export default function PaddyCommandCenter({
                       @{flowRate} {flowRateUnit.toUpperCase()}
                     </span>
                   </div>
-                  <div className="text-xl font-bold text-amber-300 font-mono flex items-center space-x-2">
-                    <Clock className="w-4 h-4 text-amber-400" />
-                    <span>{effectiveLockout ? "0 mins (Paused)" : calculatedRuntimeFormatted}</span>
+                  <div className="text-xl font-bold font-mono flex items-center space-x-2">
+                    <Clock className={`w-4 h-4 ${hasField ? "text-amber-400" : "text-slate-500"}`} />
+                    <span className={hasField ? "text-amber-300" : "text-slate-500"}>
+                      {hasField
+                        ? (effectiveLockout ? "0 mins (Paused)" : calculatedRuntimeFormatted)
+                        : "--"}
+                    </span>
                   </div>
                   <span className="text-[10px] text-slate-400 block mt-1 font-mono">
-                    {effectiveLockout
-                      ? `⚡ Unpaused Runtime: ${calculatedRuntimeFormatted} (@ ${flowRate} ${flowRateUnit.toUpperCase()})`
-                      : `Direct delivery runtime at ${flowRate} ${flowRateUnit.toUpperCase()}`}
+                    {hasField
+                      ? (effectiveLockout
+                          ? `⚡ Unpaused Runtime: ${calculatedRuntimeFormatted} (@ ${flowRate} ${flowRateUnit.toUpperCase()})`
+                          : `Direct delivery runtime at ${flowRate} ${flowRateUnit.toUpperCase()}`)
+                      : "Awaiting parcel area calculation"}
                   </span>
                 </div>
               </div>
@@ -703,86 +768,102 @@ export default function PaddyCommandCenter({
             <div className="bg-slate-900/60 p-3.5 rounded-2xl border border-slate-800/90 space-y-2.5">
               <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                 <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 rounded-full bg-indigo-400" />
+                  <div className={`w-2 h-2 rounded-full ${hasField ? "bg-indigo-400" : "bg-slate-500"}`} />
                   <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
                     3. Automated 7-Day Alternate Wetting and Drying (AWD) Plan
                   </span>
                 </div>
-                <span className="text-cyan-300 font-mono font-bold text-xs">
-                  {(() => {
-                    const totalL = schedule.reduce((acc: number, d: any) => acc + (d.volumeLiters || 0), 0);
-                    const totalG = Math.round(totalL * 0.264172);
-                    return flowRateUnit === "lpm"
-                      ? `Total Week: ${totalL.toLocaleString()} L (${totalG.toLocaleString()} Gal)`
-                      : `Total Week: ${totalG.toLocaleString()} Gal (${totalL.toLocaleString()} L)`;
-                  })()}
+                <span className={`font-mono font-bold text-xs ${hasField ? "text-cyan-300" : "text-slate-500"}`}>
+                  {hasField ? (
+                    (() => {
+                      const totalL = schedule.reduce((acc: number, d: any) => acc + (d.volumeLiters || 0), 0);
+                      const totalG = Math.round(totalL * 0.264172);
+                      return flowRateUnit === "lpm"
+                        ? `Total Week: ${totalL.toLocaleString()} L (${totalG.toLocaleString()} Gal)`
+                        : `Total Week: ${totalG.toLocaleString()} Gal (${totalL.toLocaleString()} L)`;
+                    })()
+                  ) : (
+                    "Total Week: --"
+                  )}
                 </span>
               </div>
 
-              {/* 7-Day Schedule Responsive Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
-                {schedule.map((day: any) => {
-                  const isIrrigate = day.status === "IRRIGATE";
-                  const isSkip = day.status === "SKIP";
-                  const isReduced = day.status === "REDUCED";
-                  const dayLiters = day.volumeLiters || 0;
-                  const dayGallons = day.volumeGallons || Math.round(dayLiters * 0.264172);
-                  return (
-                    <div
-                      key={day.dayIndex}
-                      className={`p-2.5 rounded-xl border text-xs flex flex-col justify-between transition-all ${
-                        isSkip
-                          ? "bg-amber-950/30 border-amber-500/40 text-amber-200"
-                          : isReduced
-                          ? "bg-sky-950/40 border-sky-500/40 text-sky-200"
-                          : isIrrigate
-                          ? "bg-cyan-950/40 border-cyan-500/40 text-cyan-200 shadow-sm shadow-cyan-500/10"
-                          : "bg-slate-950/50 border-slate-800 text-slate-400"
-                      }`}
-                    >
-                      <div>
-                        <div className="font-bold text-slate-100 flex items-center justify-between">
-                          <span>{day.dayName}</span>
-                          <span className={`text-[9px] px-1 rounded font-mono ${
-                            isSkip ? "bg-amber-500/20 text-amber-300" : isReduced ? "bg-sky-500/20 text-sky-300" : isIrrigate ? "bg-cyan-500/20 text-cyan-300" : "bg-slate-800 text-slate-400"
-                          }`}>
-                            {isSkip ? "SKIP" : isReduced ? "50%" : isIrrigate ? "AWD" : "REST"}
-                          </span>
+              {/* 7-Day Schedule Responsive Cards OR Awaiting Boundary State */}
+              {!hasField ? (
+                <div className="p-6 rounded-xl bg-slate-950/50 border border-dashed border-slate-800 text-center flex flex-col items-center justify-center space-y-2">
+                  <Calendar className="w-8 h-8 text-slate-600" />
+                  <div className="text-xs font-bold text-slate-300">
+                    Awaiting Field Boundary for 7-Day Schedule
+                  </div>
+                  <p className="text-[11px] text-slate-400 max-w-md">
+                    Draw your parcel boundary on the satellite map to generate the customized 7-day Alternate Wetting and Drying (AWD) irrigation schedule for your exact acreage and crop type.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
+                  {schedule.map((day: any) => {
+                    const isIrrigate = day.status === "IRRIGATE";
+                    const isSkip = day.status === "SKIP";
+                    const isReduced = day.status === "REDUCED";
+                    const dayLiters = day.volumeLiters || 0;
+                    const dayGallons = day.volumeGallons || Math.round(dayLiters * 0.264172);
+                    return (
+                      <div
+                        key={day.dayIndex}
+                        className={`p-2.5 rounded-xl border text-xs flex flex-col justify-between transition-all ${
+                          isSkip
+                            ? "bg-amber-950/30 border-amber-500/40 text-amber-200"
+                            : isReduced
+                            ? "bg-sky-950/40 border-sky-500/40 text-sky-200"
+                            : isIrrigate
+                            ? "bg-cyan-950/40 border-cyan-500/40 text-cyan-200 shadow-sm shadow-cyan-500/10"
+                            : "bg-slate-950/50 border-slate-800 text-slate-400"
+                        }`}
+                      >
+                        <div>
+                          <div className="font-bold text-slate-100 flex items-center justify-between">
+                            <span>{day.dayName}</span>
+                            <span className={`text-[9px] px-1 rounded font-mono ${
+                              isSkip ? "bg-amber-500/20 text-amber-300" : isReduced ? "bg-sky-500/20 text-sky-300" : isIrrigate ? "bg-cyan-500/20 text-cyan-300" : "bg-slate-800 text-slate-400"
+                            }`}>
+                              {isSkip ? "SKIP" : isReduced ? "50%" : isIrrigate ? "AWD" : "REST"}
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-slate-500">{day.dateLabel}</div>
                         </div>
-                        <div className="text-[10px] text-slate-500">{day.dateLabel}</div>
-                      </div>
 
-                      <div className="my-2">
-                        {isIrrigate || isReduced ? (
-                          <div>
-                            <div className="font-extrabold font-mono text-cyan-300 text-sm">
-                              {flowRateUnit === "lpm" ? `${dayLiters.toLocaleString()} L` : `${dayGallons.toLocaleString()} Gal`}
+                        <div className="my-2">
+                          {isIrrigate || isReduced ? (
+                            <div>
+                              <div className="font-extrabold font-mono text-cyan-300 text-sm">
+                                {flowRateUnit === "lpm" ? `${dayLiters.toLocaleString()} L` : `${dayGallons.toLocaleString()} Gal`}
+                              </div>
+                              <div className="text-[10px] font-mono text-slate-400">
+                                {flowRateUnit === "lpm" ? `(${dayGallons.toLocaleString()} Gal)` : `(${dayLiters.toLocaleString()} L)`}
+                              </div>
+                              <div className="text-[10px] font-mono text-emerald-400 mt-0.5">
+                                Run: {day.runtimeFormatted}
+                              </div>
                             </div>
-                            <div className="text-[10px] font-mono text-slate-400">
-                              {flowRateUnit === "lpm" ? `(${dayGallons.toLocaleString()} Gal)` : `(${dayLiters.toLocaleString()} L)`}
+                          ) : isSkip ? (
+                            <div className="font-bold text-[10px] text-amber-300 py-1">
+                              Rain Lockout ({day.rainForecastMm || 14}mm)
                             </div>
-                            <div className="text-[10px] font-mono text-emerald-400 mt-0.5">
-                              Run: {day.runtimeFormatted}
+                          ) : (
+                            <div className="text-[10px] text-slate-500 py-1">
+                              REST (AWD Aeration)
                             </div>
-                          </div>
-                        ) : isSkip ? (
-                          <div className="font-bold text-[10px] text-amber-300 py-1">
-                            Rain Lockout ({day.rainForecastMm || 14}mm)
-                          </div>
-                        ) : (
-                          <div className="text-[10px] text-slate-500 py-1">
-                            REST (AWD Aeration)
-                          </div>
-                        )}
-                      </div>
+                          )}
+                        </div>
 
-                      <div className="text-[9px] text-slate-500 truncate">
-                        {isIrrigate || isReduced ? day.recommendedTimeWindow : "No watering"}
+                        <div className="text-[9px] text-slate-500 truncate">
+                          {isIrrigate || isReduced ? day.recommendedTimeWindow : "No watering"}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
           </div>

@@ -14,6 +14,7 @@ interface FieldSummaryBadgeProps {
   flowRate?: number;
   flowRateUnit?: "gpm" | "lpm";
   onOpenDetails?: () => void;
+  onClearField?: () => void;
 }
 
 export default function FieldSummaryBadge({
@@ -26,6 +27,7 @@ export default function FieldSummaryBadge({
   flowRate = 200,
   flowRateUnit = "lpm",
   onOpenDetails,
+  onClearField,
 }: FieldSummaryBadgeProps) {
   if (!field) return null;
 
@@ -106,6 +108,18 @@ export default function FieldSummaryBadge({
           </>
         )}
       </button>
+
+      {/* Action: Delete / Clear Field Boundary */}
+      {onClearField && (
+        <button
+          onClick={onClearField}
+          className="w-full py-1.5 px-3 rounded-xl bg-slate-900/80 hover:bg-rose-950/40 border border-slate-800 hover:border-rose-500/50 text-slate-400 hover:text-rose-300 font-semibold text-[11px] flex items-center justify-center space-x-1.5 transition-all"
+          title="Delete current mapped field"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+          <span>Clear / Delete Field</span>
+        </button>
+      )}
     </div>
   );
 }
