@@ -68,6 +68,7 @@ export default function PaddyCommandCenter({
   onOpenSproutAI,
 }: PaddyCommandCenterProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [overrideLockout, setOverrideLockout] = useState(false);
 
   // Lat / Lng inputs for custom location
   const [latInput, setLatInput] = useState(selectedLocation ? selectedLocation.lat.toString() : "7.9403");
@@ -86,6 +87,7 @@ export default function PaddyCommandCenter({
   const isPaddy = selectedCrop === "paddy";
 
   const isLockout = telemetryData?.rainLockout?.isLockoutActive ?? false;
+  const effectiveLockout = isLockout && !overrideLockout;
   const rainForecastMm = telemetryData?.rainLockout?.totalForecastRain48h_mm ?? 0;
   const recordedRainMm = telemetryData?.nasa?.telemetry?.precipitation_mm ?? 0;
   const nasaTelemetry = telemetryData?.nasa?.telemetry;
@@ -106,14 +108,17 @@ export default function PaddyCommandCenter({
   // Real gross water to pump (net deficit adjusted for irrigation hardware efficiency)
   const grossWaterLiters = telemetryData?.cropDemand?.grossWaterDemandLiters !== undefined
     ? telemetryData.cropDemand.grossWaterDemandLiters
-    : (isLockout ? 0 : dailyThirstLiters);
+    : dailyThirstLiters;
 
   const grossWaterGallons = Math.round(grossWaterLiters * 0.264172);
 
-  // Real pump runtime (hours & minutes)
-  const pumpRuntime = telemetryData?.pumpRuntime?.formatted !== undefined
-    ? telemetryData.pumpRuntime.formatted
-    : (isLockout || grossWaterLiters === 0 ? "0 mins" : "1h 15m");
+  // Real-time responsive pump calculation based on current flow rate
+  const flowRateLpm = flowRateUnit === "gpm" ? flowRate * 3.78541 : flowRate;
+  const rawMinutes = flowRateLpm > 0 && grossWaterLiters > 0 ? Math.round(grossWaterLiters / flowRateLpm) : 0;
+  const rawHours = Math.floor(rawMinutes / 60);
+  const rawMins = rawMinutes % 60;
+  const calculatedRuntimeFormatted = rawHours > 0 ? `${rawHours}h ${rawMins}m` : `${rawMins} mins`;
+  const pumpRuntime = calculatedRuntimeFormatted;
 
   // Paddy specific metrics
   // Recommended water layer depth:
@@ -124,6 +129,32 @@ export default function PaddyCommandCenter({
     : growthStage === "mid" 
     ? (isPaddy ? "Panicle Initiation & Flowering (Peak Thirst)" : "Mid-Season Peak Thirst") 
     : (isPaddy ? "Ripening & Grain Drainage" : "Ripening / Pre-Harvest");
+
+  // Dynamic root depth and standing water profile for all crops & stages
+  const CROP_ROOT_DEPTHS: Record<string, { initial: number; mid: number; mature: number; label: string; note: string }> = {
+    paddy: { initial: 12, mid: 5, mature: 1, label: "cm (Standing Water)", note: "AWD Controlled Basin Standing Layer" },
+    tea: { initial: 30, mid: 65, mature: 90, label: "cm (Root Layer)", note: "Perennial Bush Deep Soil Extraction" },
+    coconut: { initial: 45, mid: 120, mature: 180, label: "cm (Root Bulb)", note: "Deep Palm Infiltration Zone" },
+    tomato: { initial: 18, mid: 40, mature: 60, label: "cm (Root Layer)", note: "Capillary Active Tap Root Layer" },
+    potato: { initial: 15, mid: 35, mature: 45, label: "cm (Tuber Bed)", note: "Tuber Bulking Aeration Layer" },
+    onion: { initial: 10, mid: 20, mature: 28, label: "cm (Bulb Zone)", note: "Shallow Fibrous Root Bed" },
+    chili: { initial: 15, mid: 38, mature: 55, label: "cm (Root Layer)", note: "Semi-Deep Soil Moisture Layer" },
+    maize: { initial: 20, mid: 75, mature: 110, label: "cm (Root Layer)", note: "Deep Stalk Root Moisture Extraction" },
+    watermelon: { initial: 15, mid: 50, mature: 70, label: "cm (Root Layer)", note: "Broad Vine Tap Root Zone" },
+    cinnamon: { initial: 25, mid: 60, mature: 85, label: "cm (Root Layer)", note: "Tropical Canopy Sub-Surface Layer" },
+    banana: { initial: 25, mid: 65, mature: 90, label: "cm (Corm Zone)", note: "Rhizome & Foliage Transpiration Layer" },
+    sugarcane: { initial: 25, mid: 90, mature: 130, label: "cm (Stool Zone)", note: "Dense Stalk Root Bed" },
+  };
+
+  const cropDepthProfile = CROP_ROOT_DEPTHS[selectedCrop] || CROP_ROOT_DEPTHS.paddy;
+  const dynamicDepthValue = growthStage === "initial" 
+    ? cropDepthProfile.initial 
+    : growthStage === "mid" 
+    ? cropDepthProfile.mid 
+    : cropDepthProfile.mature;
+
+  const dynamicDepthUnit = isPaddy ? "cm (Standing Water)" : cropDepthProfile.label;
+  const dynamicDepthNote = isPaddy ? `AWD Controlled Standing Water for ${stageName}` : `${cropDepthProfile.note} for ${cropInfo.name}`;
 
   const currentKc = growthStage === "initial" 
     ? (cropInfo.initial || 1.05) 
@@ -195,23 +226,21 @@ export default function PaddyCommandCenter({
 
           {/* Section 2: Water Thirst & Pump Runtime metrics */}
           <div className="hidden sm:flex items-center space-x-4 px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-800 text-xs">
-            {isPaddy && (
-              <div>
-                <span className="text-[10px] text-slate-400 block">Basin Depth</span>
-                <span className="font-bold text-cyan-300 font-mono text-sm">{targetDepthCm} cm</span>
-              </div>
-            )}
+            <div>
+              <span className="text-[10px] text-slate-400 block">{isPaddy ? "Basin Depth" : "Root Zone"}</span>
+              <span className="font-bold text-cyan-300 font-mono text-sm">{dynamicDepthValue} cm</span>
+            </div>
             <div>
               <span className="text-[10px] text-slate-400 block">Net Water Needed</span>
               <span className="font-bold text-sky-300 font-mono text-sm">
-                {isLockout ? "0 L (Rain Saturated)" : `${grossWaterLiters.toLocaleString()} L`}
+                {effectiveLockout ? "0 L (Rain Saturated)" : `${grossWaterLiters.toLocaleString()} L`}
               </span>
             </div>
             <div className="border-l border-slate-800 pl-3">
               <span className="text-[10px] text-slate-400 block">Pump Run (@ {flowRate} {flowRateUnit.toUpperCase()})</span>
               <span className="font-extrabold text-amber-300 font-mono text-sm flex items-center space-x-1">
                 <Clock className="w-3.5 h-3.5 text-amber-400" />
-                <span>{isLockout ? "0 mins (Paused)" : pumpRuntime}</span>
+                <span>{effectiveLockout ? "0 mins (Paused)" : calculatedRuntimeFormatted}</span>
               </span>
             </div>
           </div>
@@ -510,18 +539,44 @@ export default function PaddyCommandCenter({
                 </span>
               </div>
 
-              {/* Rain Lockout Banner */}
+              {/* Rain Lockout Banner with Interactive Override */}
               {isLockout ? (
-                <div className="p-3 rounded-xl bg-amber-950/40 border border-amber-500/50 flex items-start space-x-3 text-amber-200">
-                  <ShieldAlert className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
-                  <div className="text-xs">
-                    <div className="font-bold text-amber-300">
-                      Pumps Paused: Monsoon Storm Warning ({rainForecastMm} mm Rain Predicted)
-                    </div>
-                    <div className="text-[11px] text-amber-200/90 mt-0.5">
-                      Natural precipitation covers 100% of basin water needs. Pumps are suspended to save electricity and prevent root waterlogging.
+                <div className={`p-3 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all ${
+                  overrideLockout 
+                    ? "bg-cyan-950/40 border-cyan-500/50 text-cyan-200" 
+                    : "bg-amber-950/40 border-amber-500/50 text-amber-200"
+                }`}>
+                  <div className="flex items-start space-x-3 text-xs">
+                    {overrideLockout ? (
+                      <ShieldCheck className="w-5 h-5 text-cyan-400 flex-shrink-0 mt-0.5" />
+                    ) : (
+                      <ShieldAlert className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                    )}
+                    <div>
+                      <div className={`font-bold ${overrideLockout ? "text-cyan-300" : "text-amber-300"}`}>
+                        {overrideLockout 
+                          ? "Manual Pump Override Active (Rain Pause Suspended)" 
+                          : `Pumps Paused: Monsoon Storm Warning (${rainForecastMm} mm Rain Predicted)`}
+                      </div>
+                      <div className="text-[11px] opacity-90 mt-0.5">
+                        {overrideLockout
+                          ? `Operator override active. Delivering ${grossWaterLiters.toLocaleString()} L (${calculatedRuntimeFormatted} pump run) regardless of forecasted precipitation.`
+                          : "Natural precipitation covers 100% of basin water needs. Pumps are suspended to save electricity and prevent root waterlogging."}
+                      </div>
                     </div>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setOverrideLockout(!overrideLockout)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm flex-shrink-0 ${
+                      overrideLockout
+                        ? "bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200"
+                        : "bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/30"
+                    }`}
+                  >
+                    {overrideLockout ? "🌧️ Re-enable Rain Lockout" : "⚡ Override Rain & Pump Now"}
+                  </button>
                 </div>
               ) : (
                 <div className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-500/50 flex items-start space-x-3 text-emerald-200">
@@ -540,38 +595,55 @@ export default function PaddyCommandCenter({
               {/* 3 Metric Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-800">
-                  <span className="text-[11px] text-slate-400 block mb-1">
-                    {isPaddy ? "Target Standing Basin Depth" : "Target Root Hydration Layer"}
-                  </span>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[11px] text-slate-400">
+                      {isPaddy ? "Target Standing Basin Depth" : "Target Root Hydration Layer"}
+                    </span>
+                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-900 text-cyan-300 font-mono border border-slate-800">
+                      FAO-56 Zr
+                    </span>
+                  </div>
                   <div className="text-xl font-bold text-cyan-300 font-mono flex items-center space-x-2">
                     <Gauge className="w-4 h-4 text-cyan-400" />
-                    <span>{isPaddy ? `${targetDepthCm} cm` : "25–30 cm (Root Zone)"}</span>
+                    <span>{dynamicDepthValue} {dynamicDepthUnit}</span>
                   </div>
                   <span className="text-[10px] text-slate-500 block mt-1">
-                    {isPaddy ? `AWD Controlled Standing Water for ${stageName}` : `Deep infiltration target for ${cropInfo.name}`}
+                    {dynamicDepthNote}
                   </span>
                 </div>
 
                 <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-800">
-                  <span className="text-[11px] text-slate-400 block mb-1">Net Daily Water Required</span>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[11px] text-slate-400">Net Daily Water Required</span>
+                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-900 text-sky-300 font-mono border border-slate-800">
+                      {systemEfficiency}% Delivery Eff
+                    </span>
+                  </div>
                   <div className="text-xl font-bold text-sky-300 font-mono">
-                    {isLockout ? "0 Liters (Rain Saturated)" : `${grossWaterLiters.toLocaleString()} Liters`}
+                    {effectiveLockout ? "0 Liters (Rain Saturated)" : `${grossWaterLiters.toLocaleString()} Liters`}
                   </div>
                   <span className="text-[10px] text-slate-400 block mt-1 font-mono">
-                    {isLockout
-                      ? `Rain covers 100% of thirst (${dailyThirstLiters.toLocaleString()} L saved)`
-                      : `Crop evapotranspiration loss: ${dailyThirstLiters.toLocaleString()} L across ${field ? field.areaHectares.toFixed(2) : "1.0"} ha`}
+                    {effectiveLockout
+                      ? `⚡ Unpaused Crop Thirst: ${grossWaterLiters.toLocaleString()} L across ${field ? field.areaHectares.toFixed(2) : "1.0"} ha (Rain covers 100%)`
+                      : `Crop evapotranspiration deficit: ${dailyThirstLiters.toLocaleString()} L across ${field ? field.areaHectares.toFixed(2) : "1.0"} ha`}
                   </span>
                 </div>
 
                 <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-800">
-                  <span className="text-[11px] text-slate-400 block mb-1">Pump Runtime</span>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[11px] text-slate-400">Pump Runtime</span>
+                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-900 text-amber-300 font-mono border border-slate-800">
+                      @{flowRate} {flowRateUnit.toUpperCase()}
+                    </span>
+                  </div>
                   <div className="text-xl font-bold text-amber-300 font-mono flex items-center space-x-2">
                     <Clock className="w-4 h-4 text-amber-400" />
-                    <span>{isLockout ? "0 mins (Paused)" : pumpRuntime}</span>
+                    <span>{effectiveLockout ? "0 mins (Paused)" : calculatedRuntimeFormatted}</span>
                   </div>
-                  <span className="text-[10px] text-slate-500 block mt-1">
-                    {isLockout ? "Pumps suspended to save power & prevent flood" : `Based on ${flowRate} ${flowRateUnit.toUpperCase()} delivery rating`}
+                  <span className="text-[10px] text-slate-400 block mt-1 font-mono">
+                    {effectiveLockout
+                      ? `⚡ Unpaused Runtime: ${calculatedRuntimeFormatted} (@ ${flowRate} ${flowRateUnit.toUpperCase()})`
+                      : `Direct delivery runtime at ${flowRate} ${flowRateUnit.toUpperCase()}`}
                   </span>
                 </div>
               </div>

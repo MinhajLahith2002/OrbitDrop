@@ -451,9 +451,15 @@ export default function MapComponent({
         stageLabel = selectedCrop === "paddy" ? "Grain Hardening & Terminal Drain" : "Ripening / Pre-Harvest";
       }
 
+      const flowRateLpm = flowRateUnit === "gpm" ? flowRate * 3.78541 : flowRate;
+      const rawMinutes = flowRateLpm > 0 && grossLiters > 0 ? Math.round(grossLiters / flowRateLpm) : 0;
+      const rawHours = Math.floor(rawMinutes / 60);
+      const rawMins = rawMinutes % 60;
+      const dynamicRuntime = rawHours > 0 ? `${rawHours}h ${rawMins}m` : `${rawMins} mins`;
+
       const statusBadge = isDrawnParcel ? "PARCEL ACTIVE" : "FARMLAND BASIN";
       const netWaterDisplay = isLockout ? "0 L (Rain Saturated)" : `${grossLiters.toLocaleString()} L`;
-      const pumpDisplay = isIrrigating ? "Active" : (isLockout ? "0 mins (Paused)" : pumpRuntime);
+      const pumpDisplay = isIrrigating ? "Active" : (isLockout ? "0 mins (Paused)" : dynamicRuntime);
 
       const badgeHtml = `
         <div class="live-crop-badge" style="
