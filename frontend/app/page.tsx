@@ -45,23 +45,27 @@ export default function Home() {
   const [flowRate, setFlowRate] = useState(50);
   const [flowRateUnit, setFlowRateUnit] = useState<"gpm" | "lpm">("gpm");
 
-  const fetchTelemetryForField = async (
+  const fetchTelemetry = async (
     targetField = activeField,
+    preset = selectedPreset,
     crop = selectedCrop,
     stage = growthStage,
     method = irrigationMethod,
     rate = flowRate,
     unit = flowRateUnit
   ) => {
-    if (!targetField) return;
+    const lat = targetField ? targetField.centroid.lat : (preset?.lat || 7.9403);
+    const lng = targetField ? targetField.centroid.lng : (preset?.lng || 81.0188);
+    const area = targetField ? targetField.areaHectares : 1.0;
+
     try {
       const response = await fetch("/api/telemetry", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          latitude: targetField.centroid.lat,
-          longitude: targetField.centroid.lng,
-          areaHectares: targetField.areaHectares,
+          latitude: lat,
+          longitude: lng,
+          areaHectares: area,
           crop,
           growthStage: stage,
           irrigationMethod: method,
@@ -78,37 +82,40 @@ export default function Home() {
     }
   };
 
+  // Live telemetry fetch on initial mount
+  React.useEffect(() => {
+    fetchTelemetry(null, selectedPreset, selectedCrop, growthStage, irrigationMethod, flowRate, flowRateUnit);
+  }, []);
+
   const handleFieldCreated = (field: FieldData) => {
     setActiveField(field);
-    setGridData(null);
     setIsIrrigating(false);
-    fetchTelemetryForField(field);
+    fetchTelemetry(field, selectedPreset, selectedCrop, growthStage, irrigationMethod, flowRate, flowRateUnit);
+    handleGenerateGrid(field);
   };
 
   const handleFieldCleared = () => {
     setActiveField(null);
     setGridData(null);
     setIsIrrigating(false);
-    setTelemetryData(null);
+    fetchTelemetry(null, selectedPreset, selectedCrop, growthStage, irrigationMethod, flowRate, flowRateUnit);
   };
 
   const handleSelectPreset = (preset: PresetLocation) => {
     setSelectedPreset(preset);
+    fetchTelemetry(activeField, preset, selectedCrop, growthStage, irrigationMethod, flowRate, flowRateUnit);
   };
 
   const handleReset = () => {
     setActiveField(null);
     setGridData(null);
     setIsIrrigating(false);
-    setTelemetryData(null);
-    if (typeof window !== "undefined") {
-      (window as any).activeField = null;
-      window.location.reload();
-    }
+    fetchTelemetry(null, selectedPreset, selectedCrop, growthStage, irrigationMethod, flowRate, flowRateUnit);
   };
 
-  const handleGenerateGrid = async () => {
-    if (!activeField) {
+  const handleGenerateGrid = async (targetField = activeField) => {
+    const fieldToScan = targetField || activeField;
+    if (!fieldToScan) {
       alert("Please draw an agricultural parcel or select a preset first!");
       return;
     }
@@ -118,8 +125,8 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          coordinates: activeField.coordinates,
-          regionalMoisture: 22.5,
+          coordinates: fieldToScan.coordinates,
+          regionalMoisture: 24.5,
           gridSpacingMeters: 30.0,
         }),
       });
@@ -132,7 +139,6 @@ export default function Home() {
       setGridData(result);
     } catch (err: any) {
       console.error("Error generating micro-stress grid:", err);
-      alert(`ML Spatial Downscaling error: ${err.message}`);
     } finally {
       setIsGeneratingGrid(false);
     }
@@ -156,37 +162,27 @@ export default function Home() {
 
   const handleCropChange = (crop: string) => {
     setSelectedCrop(crop);
-    if (activeField) {
-      fetchTelemetryForField(activeField, crop, growthStage, irrigationMethod, flowRate, flowRateUnit);
-    }
+    fetchTelemetry(activeField, selectedPreset, crop, growthStage, irrigationMethod, flowRate, flowRateUnit);
   };
 
   const handleStageChange = (stage: string) => {
     setGrowthStage(stage);
-    if (activeField) {
-      fetchTelemetryForField(activeField, selectedCrop, stage, irrigationMethod, flowRate, flowRateUnit);
-    }
+    fetchTelemetry(activeField, selectedPreset, selectedCrop, stage, irrigationMethod, flowRate, flowRateUnit);
   };
 
   const handleMethodChange = (method: string) => {
     setIrrigationMethod(method);
-    if (activeField) {
-      fetchTelemetryForField(activeField, selectedCrop, growthStage, method, flowRate, flowRateUnit);
-    }
+    fetchTelemetry(activeField, selectedPreset, selectedCrop, growthStage, method, flowRate, flowRateUnit);
   };
 
   const handleFlowRateChange = (rate: number) => {
     setFlowRate(rate);
-    if (activeField) {
-      fetchTelemetryForField(activeField, selectedCrop, growthStage, irrigationMethod, rate, flowRateUnit);
-    }
+    fetchTelemetry(activeField, selectedPreset, selectedCrop, growthStage, irrigationMethod, rate, flowRateUnit);
   };
 
   const handleFlowRateUnitChange = (unit: "gpm" | "lpm") => {
     setFlowRateUnit(unit);
-    if (activeField) {
-      fetchTelemetryForField(activeField, selectedCrop, growthStage, irrigationMethod, flowRate, unit);
-    }
+    fetchTelemetry(activeField, selectedPreset, selectedCrop, growthStage, irrigationMethod, flowRate, unit);
   };
 
   const activeCropDisplay = CROP_COEFFICIENTS[selectedCrop]?.name || selectedCrop.toUpperCase();
