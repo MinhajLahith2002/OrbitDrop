@@ -15,7 +15,7 @@ export const PRESET_FARMLANDS: PresetLocation[] = [
   },
   {
     name: "Anuradhapura Farmlands",
-    region: "Dry Zone Cascade Tanks (Wewa)",
+    region: "Dry Zone Cascade Reservoir Tanks",
     lat: 8.3325,
     lng: 80.4250,
     zoom: 14,
@@ -61,23 +61,20 @@ interface PresetsBarProps {
 
 export default function PresetsBar({ onSelectPreset }: PresetsBarProps) {
   return (
-    <div className="absolute top-20 left-6 z-[1000] flex flex-wrap gap-2 max-w-[85vw] pointer-events-auto">
-      <div className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-slate-950/85 backdrop-blur-md border border-slate-800 text-slate-300 text-xs shadow-lg font-medium">
+    <div className="absolute top-[68px] left-6 z-[1000] flex items-center gap-2 max-w-[calc(100vw-48px)] overflow-x-auto py-1 scrollbar-none pointer-events-auto">
+      <div className="flex-shrink-0 flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-slate-950/90 backdrop-blur-md border border-slate-800 text-slate-300 text-xs shadow-lg font-medium">
         <Compass className="w-3.5 h-3.5 text-cyan-400" />
-        <span>Sri Lanka Agricultural Presets:</span>
+        <span>Agricultural Presets:</span>
       </div>
       {PRESET_FARMLANDS.map((preset) => (
         <button
           key={preset.name}
           onClick={() => onSelectPreset(preset)}
-          className="group flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-900/80 hover:bg-cyan-950/80 border border-slate-800/80 hover:border-cyan-500/50 backdrop-blur-md text-xs text-slate-300 hover:text-cyan-200 transition-all duration-200 shadow-md"
-          title={preset.description}
+          className="flex-shrink-0 group flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-900/85 hover:bg-cyan-950/90 border border-slate-800/80 hover:border-cyan-500/50 backdrop-blur-md text-xs text-slate-300 hover:text-cyan-200 transition-all duration-200 shadow-md"
+          title={`${preset.name}: ${preset.description}`}
         >
           <MapPin className="w-3 h-3 text-cyan-400 group-hover:scale-110 transition-transform" />
           <span className="font-semibold">{preset.name}</span>
-          <span className="hidden xl:inline text-[10px] text-slate-500 group-hover:text-cyan-400/70">
-            • {preset.region}
-          </span>
         </button>
       ))}
     </div>

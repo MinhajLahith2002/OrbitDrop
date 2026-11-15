@@ -36,7 +36,9 @@ import {
   Cpu,
   Play,
   Square,
-  CheckCircle2
+  CheckCircle2,
+  Bot,
+  Sprout
 } from "lucide-react";
 import { FieldData, DownscalingResult } from "@/types/geo";
 
@@ -49,6 +51,20 @@ interface StatsPanelProps {
   onStartIrrigation: () => void;
   onStopIrrigation: () => void;
   onTelemetryUpdated?: (data: any) => void;
+  telemetryData?: any;
+  selectedCrop?: string;
+  onSelectCrop?: (crop: string) => void;
+  growthStage?: string;
+  onSelectGrowthStage?: (stage: string) => void;
+  irrigationMethod?: string;
+  onSelectIrrigationMethod?: (method: string) => void;
+  flowRate?: number;
+  onFlowRateChange?: (rate: number) => void;
+  flowRateUnit?: "gpm" | "lpm";
+  onFlowRateUnitChange?: (unit: "gpm" | "lpm") => void;
+  onOpenCropModal?: () => void;
+  onOpenWaterUsageModal?: () => void;
+  onOpenSproutModal?: () => void;
 }
 
 export default function StatsPanel({
@@ -60,6 +76,20 @@ export default function StatsPanel({
   onStartIrrigation,
   onStopIrrigation,
   onTelemetryUpdated,
+  telemetryData: externalTelemetryData,
+  selectedCrop: externalCrop,
+  onSelectCrop: externalSetCrop,
+  growthStage: externalStage,
+  onSelectGrowthStage: externalSetStage,
+  irrigationMethod: externalMethod,
+  onSelectIrrigationMethod: externalSetMethod,
+  flowRate: externalFlowRate,
+  onFlowRateChange: externalSetFlowRate,
+  flowRateUnit: externalFlowRateUnit,
+  onFlowRateUnitChange: externalSetFlowRateUnit,
+  onOpenCropModal,
+  onOpenWaterUsageModal,
+  onOpenSproutModal,
 }: StatsPanelProps) {
   const [copied, setCopied] = useState(false);
   const [showGeoJson, setShowGeoJson] = useState(false);
@@ -67,11 +97,36 @@ export default function StatsPanel({
   const [showHistoryTimeline, setShowHistoryTimeline] = useState(false);
   const [showRainForecast, setShowRainForecast] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [selectedCrop, setSelectedCrop] = useState("paddy");
-  const [growthStage, setGrowthStage] = useState("mid");
-  const [irrigationMethod, setIrrigationMethod] = useState("basin");
+
+  const [localCrop, setLocalCrop] = useState("paddy");
+  const [localStage, setLocalStage] = useState("mid");
+  const [localMethod, setLocalMethod] = useState("basin");
+  const [localFlowRate, setLocalFlowRate] = useState(50);
+  const [localFlowRateUnit, setLocalFlowRateUnit] = useState<"gpm" | "lpm">("gpm");
   const [simulateStorm, setSimulateStorm] = useState(false);
-  const [telemetryData, setTelemetryData] = useState<any>(null);
+  const [localTelemetryData, setLocalTelemetryData] = useState<any>(null);
+
+  const selectedCrop = externalCrop !== undefined ? externalCrop : localCrop;
+  const growthStage = externalStage !== undefined ? externalStage : localStage;
+  const irrigationMethod = externalMethod !== undefined ? externalMethod : localMethod;
+  const flowRate = externalFlowRate !== undefined ? externalFlowRate : localFlowRate;
+  const flowRateUnit = externalFlowRateUnit !== undefined ? externalFlowRateUnit : localFlowRateUnit;
+  const telemetryData = externalTelemetryData !== undefined ? externalTelemetryData : localTelemetryData;
+
+  const setSelectedCrop = (crop: string) => {
+    if (externalSetCrop) externalSetCrop(crop);
+    else setLocalCrop(crop);
+  };
+
+  const setGrowthStage = (stage: string) => {
+    if (externalSetStage) externalSetStage(stage);
+    else setLocalStage(stage);
+  };
+
+  const setIrrigationMethod = (method: string) => {
+    if (externalSetMethod) externalSetMethod(method);
+    else setLocalMethod(method);
+  };
 
   if (!field) {
     return (
@@ -81,25 +136,35 @@ export default function StatsPanel({
             <Layers className="w-4 h-4 text-cyan-400" />
           </div>
           <div>
-            <h3 className="font-semibold text-sm text-slate-100">Step 1: Outline Sri Lankan Farm Parcel</h3>
-            <p className="text-[11px] text-slate-400">Paddy field (වෙල්යාය), tea estate or coconut plot</p>
+            <h3 className="font-semibold text-sm text-slate-100">Step 1: Draw Your Farm Parcel</h3>
+            <p className="text-[11px] text-slate-400">Paddy field, tea estate, or coconut plot</p>
           </div>
         </div>
 
         <div className="space-y-2 text-xs text-slate-300 bg-slate-900/60 rounded-xl p-3 border border-slate-800">
           <div className="flex items-start space-x-2">
             <span className="w-5 h-5 rounded-full bg-cyan-900/60 text-cyan-300 flex items-center justify-center text-[10px] font-bold mt-0.5">1</span>
-            <p>Select a region above (e.g. <strong>Polonnaruwa</strong> or <strong>Anuradhapura</strong>).</p>
+            <p>Click a preset at the top (e.g. <strong>Polonnaruwa</strong> or <strong>Anuradhapura</strong>).</p>
           </div>
           <div className="flex items-start space-x-2">
             <span className="w-5 h-5 rounded-full bg-cyan-900/60 text-cyan-300 flex items-center justify-center text-[10px] font-bold mt-0.5">2</span>
-            <p>Click <strong className="text-cyan-300">Polygon</strong> on the left toolbar and trace field bunds (*Niyara*).</p>
+            <p>Click the <strong className="text-cyan-300">Polygon</strong> tool on the left toolbar and click points around your field.</p>
           </div>
           <div className="flex items-start space-x-2">
             <span className="w-5 h-5 rounded-full bg-cyan-900/60 text-cyan-300 flex items-center justify-center text-[10px] font-bold mt-0.5">3</span>
-            <p>Run NASA telemetry, 30m ML micro-stress, and dispatch variable-rate water spray animation.</p>
+            <p>Click <strong>Calculate Water Needs</strong> to check satellite data and spray water only where needed.</p>
           </div>
         </div>
+
+        {onOpenCropModal && (
+          <button
+            onClick={onOpenCropModal}
+            className="w-full mt-3 py-2 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-cyan-300 text-xs font-semibold flex items-center justify-center space-x-2 transition-all"
+          >
+            <Sprout className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Select Crop & Pump Settings (35+ Crops)</span>
+          </button>
+        )}
       </div>
     );
   }
@@ -138,6 +203,8 @@ export default function StatsPanel({
           crop: selectedCrop,
           growthStage: growthStage,
           irrigationMethod: irrigationMethod,
+          flowRate: flowRate,
+          flowRateUnit: flowRateUnit,
           simulateStorm: isStorm,
         }),
       });
@@ -147,7 +214,7 @@ export default function StatsPanel({
       }
 
       const data = await response.json();
-      setTelemetryData(data);
+      setLocalTelemetryData(data);
       if (onTelemetryUpdated) {
         onTelemetryUpdated(data);
       }
@@ -174,7 +241,7 @@ export default function StatsPanel({
         <div className="flex items-center space-x-2">
           <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></div>
           <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">
-            Field Captured (ශ්‍රී ලංකා)
+            Field Captured (Sri Lanka)
           </span>
         </div>
         <button
@@ -223,12 +290,12 @@ export default function StatsPanel({
               <Droplets className="w-4 h-4 text-cyan-300 animate-pulse" />
             </div>
             <div>
-              <div className="text-xs font-bold text-slate-100">Phase 5: Canvas Water Splash Engine</div>
-              <div className="text-[10px] text-slate-400">60 FPS Variable-Rate Droplet Spray</div>
+              <div className="text-xs font-bold text-slate-100">Smart Water Spray Animation</div>
+              <div className="text-[10px] text-slate-400">Sprays water strictly where plants are thirsty</div>
             </div>
           </div>
           <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-900/80 text-cyan-300 border border-cyan-400/30">
-            HTML5 Canvas
+            60 FPS Spray
           </span>
         </div>
 
@@ -240,8 +307,8 @@ export default function StatsPanel({
             <Play className="w-4 h-4 fill-slate-950" />
             <span>
               {telemetryData?.rainLockout?.isLockoutActive
-                ? "Simulate Precision VRI Spray (Demo Override)"
-                : "Dispatch Precision Irrigation Spray"}
+                ? "Simulate Water Spray (Rain Lockout Override)"
+                : "Start Smart Water Spray"}
             </span>
           </button>
         ) : (
@@ -250,12 +317,12 @@ export default function StatsPanel({
             className="w-full py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center justify-center space-x-2 shadow-lg shadow-rose-600/30 transition-all animate-pulse"
           >
             <Square className="w-3.5 h-3.5 fill-white" />
-            <span>Stop Active Water Spray</span>
+            <span>Stop Water Spray</span>
           </button>
         )}
 
         <div className="text-[10px] text-slate-400 text-center">
-          Restricted strictly inside polygon via Raycasting PIP. Targets 3x drops on Critical zones.
+          Water droplets stay inside field borders. Sprays 3x more water on dry red spots.
         </div>
       </div>
 
@@ -267,12 +334,12 @@ export default function StatsPanel({
               <Cpu className="w-3.5 h-3.5 text-cyan-400" />
             </div>
             <div>
-              <h4 className="text-xs font-bold text-slate-100">Phase 4: ML Spatial Downscaling</h4>
-              <p className="text-[10px] text-slate-400">30m Precision Grid (SMAP Downscaled)</p>
+              <h4 className="text-xs font-bold text-slate-100">Field Moisture Scanner</h4>
+              <p className="text-[10px] text-slate-400">Finds dry spots in 30-meter blocks across your field</p>
             </div>
           </div>
           <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-cyan-950 border border-cyan-500/30 text-cyan-300">
-            30m Res
+            30m Grid
           </span>
         </div>
 
@@ -285,12 +352,12 @@ export default function StatsPanel({
             {isGeneratingGrid ? (
               <>
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400" />
-                <span>Generating 30m Grid...</span>
+                <span>Scanning Field Moisture...</span>
               </>
             ) : (
               <>
                 <Grid3X3 className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Generate 30m Micro-Stress Grid</span>
+                <span>Scan Field for Dry Spots</span>
               </>
             )}
           </button>
@@ -326,32 +393,48 @@ export default function StatsPanel({
         )}
       </div>
 
-      {/* Phase 3 Agronomic Configuration */}
+      {/* Crop and Irrigation Setup */}
       <div className="space-y-2 bg-slate-900/60 p-3 rounded-xl border border-slate-800">
         <div className="flex items-center justify-between text-xs text-cyan-300 font-semibold mb-1">
           <span className="flex items-center space-x-1.5">
             <Leaf className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Agronomic & Irrigation Controls</span>
+            <span>Crop & Watering Setup</span>
           </span>
-          <span className="text-[10px] text-slate-400 font-mono">Phase 2 & 3</span>
+          {onOpenCropModal && (
+            <button
+              onClick={onOpenCropModal}
+              className="text-[10px] text-cyan-400 hover:text-cyan-300 underline font-semibold flex items-center space-x-1"
+            >
+              <span>35+ Crops</span>
+              <ArrowRight className="w-2.5 h-2.5" />
+            </button>
+          )}
         </div>
 
         <div>
-          <label className="text-[11px] text-slate-400 font-medium block mb-1">
-            Sri Lankan Crop
-          </label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-[11px] text-slate-400 font-medium block">
+              Target Crop
+            </label>
+            <span className="text-[10px] font-mono text-cyan-300 font-bold uppercase">{selectedCrop}</span>
+          </div>
           <select
             value={selectedCrop}
             onChange={(e) => setSelectedCrop(e.target.value)}
             className="w-full bg-slate-900 border border-slate-800 text-xs rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-cyan-500"
           >
-            <option value="paddy">🌾 Rice / Paddy — වී (Maha/Yala Basins)</option>
-            <option value="tea">🫖 Ceylon Tea — තේ (Nuwara Eliya / Kandy)</option>
-            <option value="coconut">🌴 Coconut — පොල් (Coconut Triangle)</option>
-            <option value="maize">🌽 Maize — බඩ ඉරිඟු (Dry Zone Granary)</option>
-            <option value="chili">🌶️ Chili & Red Onion — මිරිස් / රතු ළූණු (Jaffna)</option>
-            <option value="vegetables">🥔 Upcountry Veggies — අල (Nuwara Eliya)</option>
-            <option value="cinnamon">🌿 Cinnamon & Spices — කුරුඳු (Wet Zone)</option>
+            <option value="paddy">🌾 Rice / Paddy (Maha/Yala Basins)</option>
+            <option value="tea">🫖 Ceylon Tea (Nuwara Eliya / Kandy)</option>
+            <option value="coconut">🌴 Coconut (Coconut Triangle)</option>
+            <option value="tomato">🍅 Tomato (Field / Greenhouse)</option>
+            <option value="potato">🥔 Potato (Upcountry Tubers)</option>
+            <option value="onion">🧅 Onion / Shallots (Jaffna Red Soil)</option>
+            <option value="maize">🌽 Maize (Dry Zone Granary)</option>
+            <option value="chili">🌶️ Chili Pepper (Jaffna / Dry Zone)</option>
+            <option value="watermelon">🍉 Watermelon (Dry Zone)</option>
+            <option value="cinnamon">🌿 Cinnamon & Spices (Wet Zone)</option>
+            <option value="banana">🍌 Banana Plantain</option>
+            <option value="sugarcane">🎋 Sugarcane</option>
           </select>
         </div>
 
@@ -365,25 +448,25 @@ export default function StatsPanel({
               onChange={(e) => setGrowthStage(e.target.value)}
               className="w-full bg-slate-900 border border-slate-800 text-xs rounded-lg px-2 py-1.5 text-slate-200 focus:outline-none focus:border-cyan-500"
             >
-              <option value="initial">Initial (Nursery)</option>
-              <option value="mid">Mid-Season (Peak Kc)</option>
-              <option value="mature">Late (Pre-Harvest)</option>
+              <option value="initial">Young Seedlings (Low thirst)</option>
+              <option value="mid">Mid-Season (Peak thirst)</option>
+              <option value="mature">Ripening / Harvest (Low thirst)</option>
             </select>
           </div>
 
           <div>
             <label className="text-[11px] text-slate-400 font-medium block mb-1">
-              Irrigation Method
+              Watering Method
             </label>
             <select
               value={irrigationMethod}
               onChange={(e) => setIrrigationMethod(e.target.value)}
               className="w-full bg-slate-900 border border-slate-800 text-xs rounded-lg px-2 py-1.5 text-slate-200 focus:outline-none focus:border-cyan-500"
             >
-              <option value="basin">Cascade Basin (55% eff)</option>
-              <option value="drip">Precision Drip (90% eff)</option>
-              <option value="sprinkler">Sprinkler (75% eff)</option>
-              <option value="furrow">Furrow Channel (60% eff)</option>
+              <option value="basin">Flood / Basin (55% efficiency)</option>
+              <option value="drip">Drip System (90% efficiency)</option>
+              <option value="sprinkler">Sprinklers (75% efficiency)</option>
+              <option value="furrow">Furrow Channels (60% efficiency)</option>
             </select>
           </div>
         </div>
@@ -392,7 +475,7 @@ export default function StatsPanel({
         <div className="pt-1.5 flex items-center justify-between text-xs border-t border-slate-800/80">
           <span className="text-[11px] text-slate-400 flex items-center space-x-1.5">
             <CloudRain className="w-3.5 h-3.5 text-sky-400" />
-            <span>Simulate Monsoon Storm (Lockout)</span>
+            <span>Test Rain Alert (Simulate Storm)</span>
           </span>
           <button
             onClick={handleToggleStormSimulation}
@@ -402,7 +485,7 @@ export default function StatsPanel({
                 : "bg-slate-800 text-slate-400 border-slate-700 hover:text-slate-200"
             }`}
           >
-            {simulateStorm ? "Storm Active (24.5mm)" : "Live Weather"}
+            {simulateStorm ? "Storm Active (24.5mm Rain)" : "Live Weather"}
           </button>
         </div>
       </div>
@@ -417,11 +500,11 @@ export default function StatsPanel({
           {loading ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
-              <span>Fetching NASA POWER Telemetry...</span>
+              <span>Checking NASA Satellites & Weather...</span>
             </>
           ) : (
             <>
-              <span>Fetch NASA POWER & Weather Lockout</span>
+              <span>Calculate Water Needs (Check NASA Satellites)</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </>
           )}
@@ -451,11 +534,11 @@ export default function StatsPanel({
                 <div>
                   <div className="text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5">
                     <span className={telemetryData.rainLockout?.isLockoutActive ? "text-amber-300" : "text-emerald-300"}>
-                      {telemetryData.rainLockout?.isLockoutActive ? "VALVES LOCKED SHUT" : "VALVES OPEN FOR IRRIGATION"}
+                      {telemetryData.rainLockout?.isLockoutActive ? "WATERING STOPPED (RAIN COMING)" : "WATERING APPROVED (DRY WEATHER)"}
                     </span>
                   </div>
                   <div className="text-[10px] text-slate-400">
-                    {telemetryData.rainLockout?.isLockoutActive ? "Smart Monsoon Rain Lockout Active" : "Dry Spell Detected"}
+                    {telemetryData.rainLockout?.isLockoutActive ? "Rain Lockout: Pumps paused to prevent flooding" : "Dry Spell: Safe to irrigate"}
                   </div>
                 </div>
               </div>
@@ -470,24 +553,24 @@ export default function StatsPanel({
             {telemetryData.rainLockout?.isLockoutActive ? (
               <div>
                 <p className="text-[11px] text-amber-200/90 leading-relaxed mb-2.5">
-                  Incoming rainfall of <strong>{telemetryData.rainLockout.totalForecastRain48h_mm} mm</strong> exceeds crop demand. Sluices & tube-well pumps disabled to prevent waterlogging & power waste.
+                  Incoming rainfall of <strong>{telemetryData.rainLockout.totalForecastRain48h_mm} mm</strong> will naturally hydrate your crops. Water pumps are paused to save electricity and prevent over-flooding.
                 </p>
 
                 <div className="bg-slate-950/80 p-2.5 rounded-lg border border-amber-500/30 grid grid-cols-3 gap-2 text-center">
                   <div>
-                    <div className="text-[9px] text-slate-400">Electricity Saved</div>
+                    <div className="text-[9px] text-slate-400">Power Saved</div>
                     <div className="font-bold text-amber-300 text-xs font-mono">
                       {telemetryData.rainLockout.sustainabilityImpact.electricitySavedKWh} kWh
                     </div>
                   </div>
                   <div>
-                    <div className="text-[9px] text-slate-400">CEB Tariff Saved</div>
+                    <div className="text-[9px] text-slate-400">Bill Saved</div>
                     <div className="font-bold text-emerald-300 text-xs font-mono">
-                      රු. {telemetryData.rainLockout.sustainabilityImpact.costSavedLKR?.toLocaleString()}
+                      LKR {telemetryData.rainLockout.sustainabilityImpact.costSavedLKR?.toLocaleString()}
                     </div>
                   </div>
                   <div>
-                    <div className="text-[9px] text-slate-400">Tank Water Preserved</div>
+                    <div className="text-[9px] text-slate-400">Reservoir Water Saved</div>
                     <div className="font-bold text-cyan-300 text-xs font-mono">
                       {telemetryData.rainLockout.sustainabilityImpact.waterSavedAcreFeet} Ac-ft
                     </div>
@@ -496,7 +579,7 @@ export default function StatsPanel({
               </div>
             ) : (
               <p className="text-[11px] text-emerald-200/90 leading-relaxed">
-                48-hour rainfall is below deficit threshold ({telemetryData.rainLockout.lockoutThreshold_mm} mm). Irrigation dispatch is approved.
+                48-hour rainfall is below threshold ({telemetryData.rainLockout.lockoutThreshold_mm} mm). Irrigation is recommended to prevent crop wilting.
               </p>
             )}
           </div>
@@ -510,10 +593,10 @@ export default function StatsPanel({
               >
                 <span className="flex items-center space-x-1.5 font-semibold">
                   <BarChart3 className="w-3.5 h-3.5 text-sky-400" />
-                  <span>Next 24h Rainfall Forecast (Open-Meteo)</span>
+                  <span>24-Hour Rainfall Forecast (Hour by Hour)</span>
                 </span>
                 <span className="text-[10px] text-cyan-400">
-                  {showRainForecast ? "Hide" : "Show"}
+                  {showRainForecast ? "Hide Chart" : "Show Chart"}
                 </span>
               </button>
 
@@ -554,22 +637,66 @@ export default function StatsPanel({
           {/* NASA Weather & Evapotranspiration */}
           <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800 space-y-2">
             <div className="flex justify-between items-center text-xs">
-              <span className="text-slate-400">Reference Loss (ET₀):</span>
+              <div>
+                <span className="text-slate-300 font-medium">Natural Sun Evaporation (ET₀):</span>
+                <span className="text-[10px] text-slate-500 block">Water lost to sun & wind</span>
+              </div>
               <span className="font-bold text-cyan-300 font-mono">{telemetryData.evapotranspiration.ET0_mm_per_day} mm/day</span>
             </div>
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-slate-400">
-                Crop Deficit ({telemetryData.cropDemand.cropNameSi || telemetryData.cropDemand.cropName}):
-              </span>
+            <div className="flex justify-between items-center text-xs pt-1 border-t border-slate-800/60">
+              <div>
+                <span className="text-slate-300 font-medium">Crop Water Thirst (ETc):</span>
+                <span className="text-[10px] text-slate-500 block">What {telemetryData.cropDemand.cropName} drinks daily</span>
+              </div>
               <span className="font-bold text-emerald-400 font-mono">
                 {telemetryData.cropDemand.ETc_mm_per_day} mm/day
               </span>
             </div>
             <div className="flex justify-between items-center text-xs pt-1.5 border-t border-slate-800">
-              <span className="text-slate-300 font-medium">Gross Farm Delivery Volume:</span>
-              <span className="font-bold text-sky-300 font-mono">
-                {telemetryData.cropDemand.grossWaterDemandLiters.toLocaleString()} L
+              <div>
+                <span className="text-slate-100 font-bold">Total Water to Pump:</span>
+                <span className="text-[10px] text-slate-400 block">Recommended delivery for this parcel</span>
+              </div>
+              <span className="font-bold text-sky-300 font-mono text-sm">
+                {telemetryData.cropDemand.grossWaterDemandLiters.toLocaleString()} Liters
               </span>
+            </div>
+
+            {/* WaterWise Pump Runtime */}
+            <div className="flex justify-between items-center text-xs pt-1.5 border-t border-slate-800/60 bg-cyan-950/30 -mx-1 px-2 py-1.5 rounded-lg border border-cyan-500/20">
+              <div>
+                <span className="text-cyan-200 font-bold flex items-center space-x-1">
+                  <span>Pump Runtime:</span>
+                </span>
+                <span className="text-[10px] text-slate-400 block">
+                  At {flowRate} {flowRateUnit.toUpperCase()} flow rate
+                </span>
+              </div>
+              <span className="font-extrabold text-amber-300 font-mono text-sm">
+                {telemetryData.pumpRuntime?.formatted || "1h 45m"}
+              </span>
+            </div>
+
+            {/* WaterWise Navigation Action Buttons */}
+            <div className="grid grid-cols-2 gap-2 pt-2">
+              {onOpenWaterUsageModal && (
+                <button
+                  onClick={onOpenWaterUsageModal}
+                  className="flex items-center justify-center space-x-1.5 px-2.5 py-2 rounded-xl bg-gradient-to-r from-cyan-950 to-sky-950 hover:from-cyan-900 hover:to-sky-900 border border-cyan-500/40 text-cyan-300 text-xs font-semibold shadow-md transition-all"
+                >
+                  <Calendar className="w-3.5 h-3.5" />
+                  <span>7-Day Schedule</span>
+                </button>
+              )}
+              {onOpenSproutModal && (
+                <button
+                  onClick={onOpenSproutModal}
+                  className="flex items-center justify-center space-x-1.5 px-2.5 py-2 rounded-xl bg-gradient-to-r from-emerald-950 to-teal-950 hover:from-emerald-900 hover:to-teal-900 border border-emerald-500/40 text-emerald-300 text-xs font-semibold shadow-md transition-all"
+                >
+                  <Bot className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Ask Sprout AI</span>
+                </button>
+              )}
             </div>
           </div>
         </div>

@@ -17,6 +17,12 @@ interface MapComponentProps {
   onIrrigationComplete?: () => void;
   activeField?: FieldData | null;
   waterDemandLiters?: number;
+  cropName?: string;
+  selectedCrop?: string;
+  telemetryData?: any;
+  flowRate?: number;
+  flowRateUnit?: "gpm" | "lpm";
+  growthStage?: string;
 }
 
 // Raycasting Point-In-Polygon Algorithm
@@ -70,6 +76,12 @@ export default function MapComponent({
   onIrrigationComplete,
   activeField,
   waterDemandLiters = 500000,
+  cropName = "Rice / Paddy",
+  selectedCrop = "paddy",
+  telemetryData,
+  flowRate = 200,
+  flowRateUnit = "lpm",
+  growthStage = "mid",
 }: MapComponentProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -77,6 +89,7 @@ export default function MapComponent({
   const activeLayerRef = useRef<any>(null);
   const gridLayerGroupRef = useRef<any>(null);
 
+  const [mapReady, setMapReady] = useState(false);
   const [internalShowGrid, setInternalShowGrid] = useState(showGrid);
   const [hydrationProgress, setHydrationProgress] = useState(0);
   const [isHydrated, setIsHydrated] = useState(false);
@@ -121,7 +134,7 @@ export default function MapComponent({
         attributionControl: false,
       });
 
-      L.control.zoom({ position: "bottomright" }).addTo(map);
+      L.control.zoom({ position: "topleft" }).addTo(map);
 
       // Esri Satellite Basemap
       L.tileLayer(
@@ -220,7 +233,7 @@ export default function MapComponent({
             areaHectares,
             areaAcres,
             perimeterMeters,
-            cropType: "Rice / Paddy (වී)",
+            cropType: cropName || "Rice / Paddy",
             createdAt: new Date().toISOString(),
           };
 
@@ -259,6 +272,7 @@ export default function MapComponent({
       });
 
       mapInstanceRef.current = map;
+      setMapReady(true);
     };
 
     initMap();
@@ -274,9 +288,12 @@ export default function MapComponent({
   // Handle Preset Farmland FlyTo
   useEffect(() => {
     if (!mapInstanceRef.current || !selectedPreset) return;
+    const lat = selectedPreset.lat ?? (selectedPreset as any).center?.[0];
+    const lng = selectedPreset.lng ?? (selectedPreset as any).center?.[1];
+    if (lat === undefined || lng === undefined || isNaN(lat) || isNaN(lng)) return;
     mapInstanceRef.current.flyTo(
-      [selectedPreset.lat, selectedPreset.lng],
-      selectedPreset.zoom,
+      [lat, lng],
+      selectedPreset.zoom || 14,
       {
         duration: 1.8,
         easeLinearity: 0.25,
@@ -602,7 +619,7 @@ export default function MapComponent({
           <div>
             <div className="flex items-center space-x-2">
               <span className="text-xs font-bold uppercase tracking-wider text-cyan-300">
-                Precision Variable-Rate Spray Active
+                Paddy Basin Irrigation Active
               </span>
               <span className="font-mono text-xs font-bold text-slate-100">
                 {hydrationProgress}%
@@ -630,10 +647,10 @@ export default function MapComponent({
           <CheckCircle2 className="w-5 h-5 text-emerald-400" />
           <div>
             <div className="text-xs font-bold text-emerald-200">
-              Field Saturated & Hydrated Successfully
+              Paddy Basin Filled & Hydrated Successfully
             </div>
             <div className="text-[10px] text-slate-300">
-              Target crop moisture achieved with 0% runoff waste.
+              Optimal standing water depth reached with 0% runoff waste.
             </div>
           </div>
         </div>
@@ -693,8 +710,8 @@ export default function MapComponent({
             <span className="font-mono font-bold text-cyan-300">{gridData.averageMoisture}%</span>
           </div>
 
-          <div className="text-[9px] text-slate-500 italic">
-            VRI Target: 3x droplets for Red, 1x for Amber, 0 for Green.
+          <div className="text-[10px] text-slate-400">
+            AWD Moisture Zones: Red (&lt;16% Deficit) · Amber (16-24% Low) · Green (&gt;24% Optimal)
           </div>
         </div>
       )}

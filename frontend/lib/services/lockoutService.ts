@@ -3,6 +3,13 @@
  * Queries Open-Meteo 48-hour precipitation forecast and calculates
  * valve lockout triggers and energy/water conservation in LKR and USD.
  */
+import dns from "node:dns";
+
+try {
+  dns.setDefaultResultOrder("ipv4first");
+} catch {
+  // Ignore in browser or environments without node:dns
+}
 
 export interface SustainabilityMetrics {
   waterSavedLiters: number;
@@ -34,7 +41,8 @@ export async function evaluateRainLockout(
   longitude: number,
   cropDeficit_mm: number,
   areaHectares: number,
-  forceSimulateStorm = false
+  forceSimulateStorm = false,
+  liveWeather?: any
 ): Promise<LockoutResult> {
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=precipitation,rain&forecast_days=2&timezone=auto`;
 
@@ -42,46 +50,69 @@ export async function evaluateRainLockout(
   let nextRainHour: string | null = null;
   let hourlyRecords: HourlyRainRecord[] = [];
 
-  try {
-    const res = await fetch(url, { next: { revalidate: 1800 } });
-    if (res.ok) {
-      const data = await res.json();
-      const rainList: number[] = data.hourly?.precipitation || [];
-      const times: string[] = data.hourly?.time || [];
+  // 1. Check if liveWeather with hourly precipitation was passed
+  if (liveWeather?.hourly?.precipitation && liveWeather?.hourly?.time) {
+    const rainList: number[] = liveWeather.hourly.precipitation || [];
+    const times: string[] = liveWeather.hourly.time || [];
 
-      totalForecastRain48h = rainList.reduce((acc, val) => acc + (val || 0), 0);
+    totalForecastRain48h = rainList.reduce((acc, val) => acc + (val || 0), 0);
 
-      for (let i = 0; i < rainList.length; i++) {
-        if (rainList[i] >= 0.5 && !nextRainHour) {
-          nextRainHour = times[i];
-        }
+    for (let i = 0; i < rainList.length; i++) {
+      if (rainList[i] >= 0.5 && !nextRainHour) {
+        nextRainHour = times[i];
       }
+    }
 
-      // Next 24 hours format
-      hourlyRecords = times.slice(0, 24).map((t, idx) => {
-        const dt = new Date(t);
-        const hourLabel = dt.toLocaleTimeString("en-US", { hour: "numeric", hour12: true });
+    hourlyRecords = times.slice(0, 24).map((t, idx) => {
+      const dt = new Date(t);
+      const hourLabel = dt.toLocaleTimeString("en-US", { hour: "numeric", hour12: true });
+      return {
+        time: t,
+        hourLabel,
+        rain_mm: parseFloat((rainList[idx] || 0).toFixed(1)),
+      };
+    });
+  } else {
+    try {
+      const res = await fetch(url, { next: { revalidate: 1800 } });
+      if (res.ok) {
+        const data = await res.json();
+        const rainList: number[] = data.hourly?.precipitation || [];
+        const times: string[] = data.hourly?.time || [];
+
+        totalForecastRain48h = rainList.reduce((acc, val) => acc + (val || 0), 0);
+
+        for (let i = 0; i < rainList.length; i++) {
+          if (rainList[i] >= 0.5 && !nextRainHour) {
+            nextRainHour = times[i];
+          }
+        }
+
+        // Next 24 hours format
+        hourlyRecords = times.slice(0, 24).map((t, idx) => {
+          const dt = new Date(t);
+          const hourLabel = dt.toLocaleTimeString("en-US", { hour: "numeric", hour12: true });
+          return {
+            time: t,
+            hourLabel,
+            rain_mm: parseFloat((rainList[idx] || 0).toFixed(1)),
+          };
+        });
+      }
+    } catch (err: any) {
+      console.warn("[LockoutService] Open-Meteo query timed out, applying regional climatology forecast:", err.message);
+      totalForecastRain48h = 5.2;
+      nextRainHour = new Date(Date.now() + 3600000 * 3).toISOString();
+      hourlyRecords = Array.from({ length: 24 }).map((_, i) => {
+        const rain = (i >= 3 && i <= 6) ? parseFloat((1.2 + Math.sin(i) * 1.5).toFixed(1)) : 0;
+        const dt = new Date(Date.now() + 3600000 * i);
         return {
-          time: t,
-          hourLabel,
-          rain_mm: parseFloat((rainList[idx] || 0).toFixed(1)),
+          time: dt.toISOString(),
+          hourLabel: dt.toLocaleTimeString("en-US", { hour: "numeric", hour12: true }),
+          rain_mm: rain,
         };
       });
     }
-  } catch (err: any) {
-    console.warn("[LockoutService] Open-Meteo query timed out, applying regional climatology forecast:", err.message);
-    // Regional fallback: inter-monsoon typical 48h rainfall pattern
-    totalForecastRain48h = 6.8;
-    nextRainHour = new Date(Date.now() + 3600000 * 3).toISOString();
-    hourlyRecords = Array.from({ length: 24 }).map((_, i) => {
-      const rain = (i >= 3 && i <= 6) ? parseFloat((1.2 + Math.sin(i) * 1.5).toFixed(1)) : 0;
-      const dt = new Date(Date.now() + 3600000 * i);
-      return {
-        time: dt.toISOString(),
-        hourLabel: dt.toLocaleTimeString("en-US", { hour: "numeric", hour12: true }),
-        rain_mm: rain,
-      };
-    });
   }
 
   // Ensure hourlyRecords is populated
@@ -96,7 +127,7 @@ export async function evaluateRainLockout(
     });
   }
 
-  // If simulation is requested (or live forecast has significant rain)
+  // If simulation is requested
   if (forceSimulateStorm) {
     totalForecastRain48h = Math.max(totalForecastRain48h, 24.5);
     nextRainHour = new Date(Date.now() + 3600000 * 2).toISOString();
