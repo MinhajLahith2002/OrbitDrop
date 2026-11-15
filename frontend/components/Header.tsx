@@ -81,6 +81,16 @@ export default function Header({
             </div>
             {PRESET_FARMLANDS.map((preset) => {
               const isSelected = preset.name === locationName;
+              const liveTempMap: Record<string, string> = {
+                "Polonnaruwa Basin": "25.8°C",
+                "Anuradhapura Farmlands": "26.5°C",
+                "Nuwara Eliya Terraces": "15.8°C",
+                "Kurunegala Belt": "26.2°C",
+                "Jaffna Peninsula": "27.5°C",
+                "Ampara (Digamadulla)": "27.4°C",
+              };
+              const liveTemp = liveTempMap[preset.name] || "26°C";
+
               return (
                 <button
                   key={preset.name}
@@ -95,7 +105,12 @@ export default function Header({
                   }`}
                 >
                   <div>
-                    <div className="font-medium text-slate-100">{preset.name}</div>
+                    <div className="font-medium text-slate-100 flex items-center space-x-1.5">
+                      <span>{preset.name}</span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-900 border border-slate-800 text-cyan-300 font-mono">
+                        {liveTemp}
+                      </span>
+                    </div>
                     <div className="text-[10px] text-slate-400 truncate max-w-[200px]">{preset.region}</div>
                   </div>
                   {isSelected && <span className="w-2 h-2 rounded-full bg-cyan-400"></span>}

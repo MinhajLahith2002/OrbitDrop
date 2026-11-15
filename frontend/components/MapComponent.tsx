@@ -416,7 +416,7 @@ export default function MapComponent({
       const displayName = cropName || activeField?.cropType || "Rice / Paddy";
 
       // Live Telemetry Computations
-      const isLockout = Boolean(telemetryData?.lockout?.isLockout);
+      const isLockout = Boolean(telemetryData?.rainLockout?.isLockoutActive ?? telemetryData?.lockout?.isLockout);
       const grossLiters = telemetryData?.cropDemand?.grossWaterDemandLiters ?? (waterDemandLiters || 0);
       const pumpRuntime = telemetryData?.pumpRuntime?.formatted || "0 mins";
 
@@ -442,13 +442,18 @@ export default function MapComponent({
         moistureBorder = "rgba(251, 191, 36, 0.4)";
       }
 
-      let stageLabel = "Panicle Initiation & Flowering";
-      if (growthStage === "ini") stageLabel = "Tillering & Vegetative Stage";
-      if (growthStage === "late") stageLabel = "Grain Ripening & Terminal Drainage";
+      let stageLabel = "Panicle Initiation & Flowering (Peak Thirst)";
+      if (growthStage === "initial" || growthStage === "ini") {
+        stageLabel = selectedCrop === "paddy" ? "Land Soaking & Puddling" : "Young Seedling (Low Thirst)";
+      } else if (growthStage === "mid") {
+        stageLabel = selectedCrop === "paddy" ? "Panicle Initiation & Flowering (Peak Thirst)" : "Mid-Season (Peak Thirst)";
+      } else if (growthStage === "mature" || growthStage === "late") {
+        stageLabel = selectedCrop === "paddy" ? "Grain Hardening & Terminal Drain" : "Ripening / Pre-Harvest";
+      }
 
       const statusBadge = isDrawnParcel ? "PARCEL ACTIVE" : "FARMLAND BASIN";
-      const netWaterDisplay = isLockout && grossLiters === 0 ? "0 L" : `${grossLiters.toLocaleString()} L`;
-      const pumpDisplay = isIrrigating ? "Active" : (isLockout ? "Paused" : pumpRuntime);
+      const netWaterDisplay = isLockout ? "0 L (Rain Saturated)" : `${grossLiters.toLocaleString()} L`;
+      const pumpDisplay = isIrrigating ? "Active" : (isLockout ? "0 mins (Paused)" : pumpRuntime);
 
       const badgeHtml = `
         <div class="live-crop-badge" style="
