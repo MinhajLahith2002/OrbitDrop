@@ -59,6 +59,19 @@ export default function Home() {
     const area = targetField ? targetField.areaHectares : 1.0;
 
     try {
+      // 1. Fetch live open-meteo real-time meteorological observations directly from client browser
+      let liveWeather: any = null;
+      try {
+        const liveRes = await fetch(
+          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,precipitation&hourly=precipitation,rain&daily=shortwave_radiation_sum,temperature_2m_max,temperature_2m_min,precipitation_sum&wind_speed_unit=ms&forecast_days=2&timezone=auto`
+        );
+        if (liveRes.ok) {
+          liveWeather = await liveRes.json();
+        }
+      } catch (clientWeatherErr) {
+        console.warn("Client live weather fetch notice:", clientWeatherErr);
+      }
+
       const response = await fetch("/api/telemetry", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -71,6 +84,7 @@ export default function Home() {
           irrigationMethod: method,
           flowRate: rate,
           flowRateUnit: unit,
+          liveWeather,
         }),
       });
       if (response.ok) {

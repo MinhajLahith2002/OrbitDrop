@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import dns from "node:dns";
 import { fetchNasaTelemetry } from "@/lib/services/nasaPowerService";
 import { calculateFAO56_ET0, calculateCropDemand, calculatePumpRuntime, generate7DayIrrigationSchedule } from "@/lib/services/agronomyService";
 import { evaluateRainLockout } from "@/lib/services/lockoutService";
+
+try {
+  dns.setDefaultResultOrder("ipv4first");
+} catch {
+  // Ignore in environments without node:dns
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,6 +23,7 @@ export async function POST(req: NextRequest) {
       flowRate = 50,
       flowRateUnit = "gpm",
       simulateStorm = false,
+      liveWeather,
     } = body;
 
     if (!latitude || !longitude) {
@@ -25,8 +33,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 1. Ingest NASA POWER telemetry & 7-day time series
-    const nasaData = await fetchNasaTelemetry(latitude, longitude);
+    // 1. Ingest NASA POWER telemetry & real-time live meteorological observations
+    const nasaData = await fetchNasaTelemetry(latitude, longitude, liveWeather);
 
     // 2. Compute FAO-56 Penman-Monteith ET0 for latest recorded telemetry
     const et0Result = calculateFAO56_ET0(nasaData.telemetry);
@@ -69,13 +77,14 @@ export async function POST(req: NextRequest) {
       };
     });
 
-    // 5. Evaluate Rain Forecast & Smart Lockout (with storm simulation option)
+    // 5. Evaluate Rain Forecast & Smart Lockout (with live weather / simulation)
     const lockoutResult = await evaluateRainLockout(
       latitude,
       longitude,
       cropResult.netDeficit_mm,
       areaHectares,
-      simulateStorm
+      simulateStorm,
+      liveWeather
     );
 
     // 6. Calculate WaterWise Pump Runtime & 7-Day Irrigation Schedule

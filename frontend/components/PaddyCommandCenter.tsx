@@ -179,7 +179,7 @@ export default function PaddyCommandCenter({
             <div>
               <span className="text-[10px] text-slate-400 block">Net Water Needed</span>
               <span className="font-bold text-sky-300 font-mono text-sm">
-                {isLockout && grossWaterLiters === 0 ? "0 L (Rain Saturated)" : `${grossWaterLiters.toLocaleString()} L`}
+                {isLockout ? "0 L (Rain Saturated)" : `${grossWaterLiters.toLocaleString()} L`}
               </span>
             </div>
             <div className="border-l border-slate-800 pl-3">
@@ -485,11 +485,11 @@ export default function PaddyCommandCenter({
                 <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-800">
                   <span className="text-[11px] text-slate-400 block mb-1">Net Daily Water Required</span>
                   <div className="text-xl font-bold text-sky-300 font-mono">
-                    {grossWaterLiters === 0 && isLockout ? "0 Liters (Rain Saturated)" : `${grossWaterLiters.toLocaleString()} Liters`}
+                    {isLockout ? "0 Liters (Rain Saturated)" : `${grossWaterLiters.toLocaleString()} Liters`}
                   </div>
                   <span className="text-[10px] text-slate-400 block mt-1 font-mono">
-                    {grossWaterLiters === 0 && isLockout
-                      ? `Rain covers 100% of thirst (${dailyThirstLiters.toLocaleString()} L)`
+                    {isLockout
+                      ? `Rain covers 100% of thirst (${dailyThirstLiters.toLocaleString()} L saved)`
                       : `Crop evapotranspiration loss: ${dailyThirstLiters.toLocaleString()} L across ${field ? field.areaHectares.toFixed(2) : "1.0"} ha`}
                   </span>
                 </div>
@@ -520,10 +520,10 @@ export default function PaddyCommandCenter({
                       Solar: {nasaTelemetry?.solarRadiation_MJ_m2_day || 16.5} MJ/m²
                     </span>
                     <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-rose-300">
-                      Temp: {nasaTelemetry?.temperature_C || 26.5}°C
+                      Temp: {nasaTelemetry?.temperature_C !== undefined ? `${nasaTelemetry.temperature_C}°C` : "26.5°C"}
                     </span>
                     <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-sky-300">
-                      Humidity: {nasaTelemetry?.relativeHumidity_percent || 78}%
+                      Humidity: {nasaTelemetry?.relativeHumidity_percent !== undefined ? `${nasaTelemetry.relativeHumidity_percent}%` : "78%"}
                     </span>
                     <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-emerald-300">
                       48h Rain Forecast: {rainForecastMm} mm
