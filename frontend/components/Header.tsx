@@ -70,6 +70,11 @@ export default function Header({
           <span className="text-slate-600">·</span>
           <MapPin className="w-3.5 h-3.5 text-cyan-400" />
           <span className="text-slate-300 font-medium">{locationName}</span>
+          {!activeFieldPresent && (
+            <span className="text-[10px] text-amber-300 font-medium px-1.5 py-0.2 rounded bg-amber-950/80 border border-amber-500/40">
+              Draw Field
+            </span>
+          )}
           {onSelectPreset && <ChevronDown className="w-3 h-3 text-slate-400 ml-0.5" />}
         </button>
 

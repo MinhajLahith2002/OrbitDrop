@@ -57,7 +57,7 @@ export default function Home() {
   ) => {
     const lat = targetField ? targetField.centroid.lat : (preset?.lat || 7.9403);
     const lng = targetField ? targetField.centroid.lng : (preset?.lng || 81.0188);
-    const area = targetField ? targetField.areaHectares : 1.0;
+    const area = targetField ? targetField.areaHectares : 0;
 
     try {
       // 1. Fetch live open-meteo real-time meteorological observations directly from client browser
@@ -252,6 +252,7 @@ export default function Home() {
         flowRate={flowRate}
         flowRateUnit={flowRateUnit}
         onOpenDetails={() => setIsDeckExpanded(true)}
+        onClearField={handleFieldCleared}
       />
 
       {/* OrbitDrop Precision Paddy Command Center (Unified Bottom Deck) */}
@@ -280,6 +281,7 @@ export default function Home() {
           }
         }}
         onOpenSproutAI={() => setIsSproutAIOpen(true)}
+        onClearField={handleFieldCleared}
         isExpanded={isDeckExpanded}
         onToggleExpand={() => setIsDeckExpanded(!isDeckExpanded)}
       />

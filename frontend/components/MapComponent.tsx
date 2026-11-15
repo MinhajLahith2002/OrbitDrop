@@ -301,6 +301,24 @@ export default function MapComponent({
     );
   }, [selectedPreset]);
 
+  // Cleanly remove layer and grid if activeField becomes null
+  useEffect(() => {
+    if (!activeField && mapInstanceRef.current) {
+      if (activeLayerRef.current) {
+        try {
+          mapInstanceRef.current.removeLayer(activeLayerRef.current);
+        } catch (e) {
+          console.warn("Could not remove activeLayer:", e);
+        }
+        activeLayerRef.current = null;
+      }
+      if (gridLayerGroupRef.current) {
+        gridLayerGroupRef.current.clearLayers();
+      }
+      setIsHydrated(false);
+    }
+  }, [activeField]);
+
   // Phase 4: Render 30m Micro-Stress Grid Overlay
   useEffect(() => {
     if (!mapInstanceRef.current || !gridLayerGroupRef.current) return;
