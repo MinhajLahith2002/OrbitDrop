@@ -162,6 +162,13 @@ export default function Home() {
 
   const handleCropChange = (crop: string) => {
     setSelectedCrop(crop);
+    const newCropName = CROP_COEFFICIENTS[crop]?.name || crop;
+    if (activeField) {
+      setActiveField({
+        ...activeField,
+        cropType: newCropName,
+      });
+    }
     fetchTelemetry(activeField, selectedPreset, crop, growthStage, irrigationMethod, flowRate, flowRateUnit);
   };
 
@@ -210,6 +217,8 @@ export default function Home() {
         onIrrigationComplete={handleIrrigationComplete}
         activeField={activeField}
         waterDemandLiters={telemetryData?.cropDemand?.waterDemandLiters || 45000}
+        cropName={activeCropDisplay}
+        selectedCrop={selectedCrop}
       />
 
       {/* Floating Active Field Badge (Clean Top-Left, only when field is drawn) */}

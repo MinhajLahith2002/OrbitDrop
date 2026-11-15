@@ -17,6 +17,8 @@ interface MapComponentProps {
   onIrrigationComplete?: () => void;
   activeField?: FieldData | null;
   waterDemandLiters?: number;
+  cropName?: string;
+  selectedCrop?: string;
 }
 
 // Raycasting Point-In-Polygon Algorithm
@@ -70,13 +72,17 @@ export default function MapComponent({
   onIrrigationComplete,
   activeField,
   waterDemandLiters = 500000,
+  cropName = "Rice / Paddy",
+  selectedCrop = "paddy",
 }: MapComponentProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const activeLayerRef = useRef<any>(null);
   const gridLayerGroupRef = useRef<any>(null);
+  const cropBadgeMarkerRef = useRef<any>(null);
 
+  const [mapReady, setMapReady] = useState(false);
   const [internalShowGrid, setInternalShowGrid] = useState(showGrid);
   const [hydrationProgress, setHydrationProgress] = useState(0);
   const [isHydrated, setIsHydrated] = useState(false);
@@ -220,7 +226,7 @@ export default function MapComponent({
             areaHectares,
             areaAcres,
             perimeterMeters,
-            cropType: "Rice / Paddy",
+            cropType: cropName || "Rice / Paddy",
             createdAt: new Date().toISOString(),
           };
 
@@ -248,6 +254,10 @@ export default function MapComponent({
 
       map.on("pm:remove", () => {
         activeLayerRef.current = null;
+        if (cropBadgeMarkerRef.current) {
+          map.removeLayer(cropBadgeMarkerRef.current);
+          cropBadgeMarkerRef.current = null;
+        }
         if (gridLayerGroupRef.current) {
           gridLayerGroupRef.current.clearLayers();
         }
@@ -259,6 +269,7 @@ export default function MapComponent({
       });
 
       mapInstanceRef.current = map;
+      setMapReady(true);
     };
 
     initMap();
@@ -342,6 +353,131 @@ export default function MapComponent({
 
     renderGrid();
   }, [gridData, internalShowGrid]);
+
+  // Floating Crop Variety & Parcel Identity Badge on Map
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+
+    const renderCropBadge = async () => {
+      const L = (await import("leaflet")).default;
+
+      let lat: number;
+      let lng: number;
+      let areaText: string;
+      const isDrawnParcel = !!(activeField && activeField.centroid);
+
+      if (isDrawnParcel && activeField?.centroid) {
+        lat = activeField.centroid.lat;
+        lng = activeField.centroid.lng;
+        areaText = `${activeField.areaHectares.toFixed(2)} ha (${activeField.areaAcres.toFixed(1)} ac)`;
+      } else if (selectedPreset) {
+        lat = selectedPreset.lat ?? (selectedPreset as any).center?.[0] ?? 7.9403;
+        lng = selectedPreset.lng ?? (selectedPreset as any).center?.[1] ?? 81.0188;
+        areaText = `1.0 ha Parcel · ${selectedPreset.name}`;
+      } else {
+        if (cropBadgeMarkerRef.current && mapInstanceRef.current) {
+          mapInstanceRef.current.removeLayer(cropBadgeMarkerRef.current);
+          cropBadgeMarkerRef.current = null;
+        }
+        return;
+      }
+
+      const CROP_EMOJIS: Record<string, string> = {
+        paddy: "🌾",
+        tea: "🫖",
+        coconut: "🌴",
+        tomato: "🍅",
+        potato: "🥔",
+        onion: "🧅",
+        chili: "🌶️",
+        maize: "🌽",
+        watermelon: "🍉",
+        cinnamon: "🌿",
+        banana: "🍌",
+        sugarcane: "🎋",
+        cucumber: "🥒",
+        carrot: "🥕",
+        cabbage: "🥬",
+        pumpkin: "🎃",
+        eggplant: "🍆",
+        papaya: "🍈",
+        grapes: "🍇",
+      };
+
+      const emoji = CROP_EMOJIS[selectedCrop || "paddy"] || "🌱";
+      const displayName = cropName || activeField?.cropType || "Rice / Paddy";
+
+      const badgeHtml = `
+        <div style="
+          display: inline-flex;
+          align-items: center;
+          gap: 10px;
+          background: rgba(2, 6, 23, 0.94);
+          backdrop-filter: blur(14px);
+          -webkit-backdrop-filter: blur(14px);
+          border: 2px solid #10b981;
+          border-radius: 9999px;
+          padding: 6px 16px;
+          box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.8), 0 0 20px rgba(16, 185, 129, 0.45);
+          color: white;
+          font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          transform: translate(-50%, -50%);
+          pointer-events: auto;
+          cursor: pointer;
+          user-select: none;
+          white-space: nowrap;
+          transition: transform 0.2s ease;
+        ">
+          <div style="
+            width: 32px;
+            height: 32px;
+            border-radius: 9999px;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(6, 182, 212, 0.3));
+            border: 1px solid rgba(52, 211, 153, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 19px;
+            flex-shrink: 0;
+          ">
+            ${emoji}
+          </div>
+          <div style="display: flex; flex-direction: column; text-align: left;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 12.5px; font-weight: 800; color: #f8fafc; letter-spacing: -0.01em; line-height: 1.2;">
+                ${displayName}
+              </span>
+              <span style="font-size: 8.5px; font-weight: 700; background: rgba(6, 182, 212, 0.2); color: #38bdf8; border: 1px solid rgba(6, 182, 212, 0.4); border-radius: 4px; padding: 1px 4px; letter-spacing: 0.05em;">
+                ${isDrawnParcel ? "PARCEL ACTIVE" : "FARMLAND BASIN"}
+              </span>
+            </div>
+            <div style="font-size: 9.5px; font-family: ui-monospace, SFMono-Regular, monospace; color: #34d399; font-weight: 600; line-height: 1.2; margin-top: 2px;">
+              ${areaText}
+            </div>
+          </div>
+        </div>
+      `;
+
+      const customIcon = L.divIcon({
+        html: badgeHtml,
+        className: "crop-variety-field-marker !bg-transparent !border-0",
+        iconSize: [0, 0],
+        iconAnchor: [0, 0],
+      });
+
+      if (cropBadgeMarkerRef.current && mapInstanceRef.current.hasLayer(cropBadgeMarkerRef.current)) {
+        cropBadgeMarkerRef.current.setLatLng([lat, lng]);
+        cropBadgeMarkerRef.current.setIcon(customIcon);
+      } else {
+        cropBadgeMarkerRef.current = L.marker([lat, lng], {
+          icon: customIcon,
+          zIndexOffset: 2000,
+        }).addTo(mapInstanceRef.current);
+      }
+    };
+
+    renderCropBadge();
+  }, [mapReady, activeField, selectedCrop, cropName, selectedPreset]);
 
   // Phase 5: HTML5 Canvas Water Splash / Spray Engine
   useEffect(() => {
