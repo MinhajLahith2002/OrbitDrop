@@ -65,6 +65,16 @@ interface Ripple {
   color: string;
 }
 
+const formatElapsed = (sec: number) => {
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  if (h > 0) {
+    return `${h}h ${m.toString().padStart(2, "0")}m ${s.toString().padStart(2, "0")}s`;
+  }
+  return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+};
+
 export default function MapComponent({
   onFieldCreated,
   onFieldCleared,
@@ -93,6 +103,15 @@ export default function MapComponent({
   const [internalShowGrid, setInternalShowGrid] = useState(showGrid);
   const [hydrationProgress, setHydrationProgress] = useState(0);
   const [isHydrated, setIsHydrated] = useState(false);
+  const [liveElapsedSeconds, setLiveElapsedSeconds] = useState(0);
+  const [liveLitersDelivered, setLiveLitersDelivered] = useState(0);
+  const [pumpMultiplier, setPumpMultiplier] = useState(1);
+  const pumpMultiplierRef = useRef(1);
+  const lastDeliveredRef = useRef({ liters: 0, seconds: 0 });
+
+  useEffect(() => {
+    pumpMultiplierRef.current = pumpMultiplier;
+  }, [pumpMultiplier]);
 
   // Irrigation Animation state refs
   const animationFrameRef = useRef<number | null>(null);
@@ -395,7 +414,17 @@ export default function MapComponent({
       particlesRef.current = [];
       ripplesRef.current = [];
       irrigationStartTimeRef.current = null;
-      setHydrationProgress(0);
+      if (lastDeliveredRef.current.liters > 0) {
+        setIsHydrated(true);
+        if (activeLayerRef.current) {
+          activeLayerRef.current.setStyle({
+            color: "#06b6d4",
+            fillColor: "#0284c7",
+            fillOpacity: 0.52,
+            weight: 3.5,
+          });
+        }
+      }
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
@@ -405,9 +434,8 @@ export default function MapComponent({
     const map = mapInstanceRef.current;
     if (!map) return;
 
-    // Total duration of irrigation cycle: 8 seconds
-    const TOTAL_DURATION_MS = 8000;
     irrigationStartTimeRef.current = Date.now();
+    const flowRateLpm = flowRateUnit === "gpm" ? flowRate * 3.78541 : flowRate;
 
     // Map screen polygon coordinates
     const getScreenPolygon = () => {
@@ -502,11 +530,26 @@ export default function MapComponent({
       }
     };
 
-    // 60 FPS Animation Engine
+    // Continuous 60 FPS Live Animation Engine
     const renderLoop = () => {
       const now = Date.now();
-      const elapsed = now - (irrigationStartTimeRef.current || now);
-      const progressRatio = Math.min(elapsed / TOTAL_DURATION_MS, 1.0);
+      const elapsedMs = now - (irrigationStartTimeRef.current || now);
+      const elapsedSec = elapsedMs / 1000;
+      
+      const speedMult = pumpMultiplierRef.current;
+      const ratePerSec = (flowRateLpm / 60) * speedMult;
+      const delivered = Math.round(elapsedSec * ratePerSec);
+
+      lastDeliveredRef.current = {
+        liters: delivered,
+        seconds: Math.floor(elapsedSec * speedMult),
+      };
+
+      setLiveElapsedSeconds(Math.floor(elapsedSec * speedMult));
+      setLiveLitersDelivered(delivered);
+
+      const targetL = waterDemandLiters > 0 ? waterDemandLiters : 25000;
+      const progressRatio = Math.min(delivered / targetL, 1.0);
       setHydrationProgress(Math.round(progressRatio * 100));
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -515,10 +558,8 @@ export default function MapComponent({
       const bounds = getScreenBounds(screenPoly);
       const screenCells = getScreenCells();
 
-      // Only spawn new drops if cycle is still running
-      if (progressRatio < 0.98) {
-        spawnParticles(screenPoly, bounds, screenCells);
-      }
+      // Continuous spawning as long as live pump is running
+      spawnParticles(screenPoly, bounds, screenCells);
 
       // Update & Draw Falling Water Droplets
       for (let i = particlesRef.current.length - 1; i >= 0; i--) {
@@ -574,12 +615,10 @@ export default function MapComponent({
 
       ctx.globalAlpha = 1.0;
 
-      // Completion Condition
-      if (progressRatio >= 1.0 && particlesRef.current.length === 0 && ripplesRef.current.length === 0) {
-        // Complete! Hydrate soil
+      // When target is reached, celebrate but keep pump ready
+      if (progressRatio >= 1.0) {
         setIsHydrated(true);
         if (activeLayerRef.current) {
-          // Deep saturated hydrated emerald/blue
           activeLayerRef.current.setStyle({
             color: "#06b6d4",
             fillColor: "#0284c7",
@@ -587,15 +626,12 @@ export default function MapComponent({
             weight: 3.5,
           });
         }
-
-        // Confetti burst
         confetti({
           particleCount: 80,
           spread: 70,
           origin: { y: 0.7 },
           colors: ["#38bdf8", "#06b6d4", "#10b981", "#3b82f6"],
         });
-
         if (onIrrigationComplete) onIrrigationComplete();
       } else {
         animationFrameRef.current = requestAnimationFrame(renderLoop);
@@ -610,7 +646,7 @@ export default function MapComponent({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [isIrrigating, activeField]);
+  }, [isIrrigating, activeField, flowRate, flowRateUnit, waterDemandLiters]);
 
   const toggleGrid = () => {
     const next = !internalShowGrid;
@@ -628,49 +664,86 @@ export default function MapComponent({
         className="absolute inset-0 pointer-events-none z-[450]"
       />
 
-      {/* Floating Hydration Status Banner during Spray */}
+      {/* Floating Live Hydration Status Banner during Spray */}
       {isIrrigating && (
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-[1000] bg-slate-950/90 backdrop-blur-md border border-cyan-500/50 rounded-2xl px-6 py-3 text-white shadow-2xl flex items-center space-x-4 pointer-events-auto animate-pulse">
-          <div className="w-9 h-9 rounded-xl bg-cyan-500/20 border border-cyan-400 flex items-center justify-center text-cyan-300">
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-[1000] bg-slate-950/95 backdrop-blur-xl border border-cyan-500/50 rounded-2xl px-5 py-3 text-white shadow-2xl flex flex-wrap items-center gap-4 pointer-events-auto animate-in fade-in slide-in-from-top-2">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-emerald-400 flex items-center justify-center text-slate-950 font-bold shadow-md shadow-cyan-500/30">
             <Droplets className="w-5 h-5 animate-bounce" />
           </div>
+
           <div>
             <div className="flex items-center space-x-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-cyan-300">
-                Paddy Basin Irrigation Active
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <span className="text-xs font-bold uppercase tracking-wider text-emerald-300">
+                Live Water Pump Running
               </span>
-              <span className="font-mono text-xs font-bold text-slate-100">
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-900 border border-slate-700 font-mono text-cyan-300">
+                ⏱️ {formatElapsed(liveElapsedSeconds)}
+              </span>
+            </div>
+
+            <div className="flex items-center space-x-2 mt-1.5">
+              <div className="w-48 h-2 bg-slate-800 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-cyan-400 to-emerald-400 rounded-full transition-all duration-200"
+                  style={{ width: `${Math.max(hydrationProgress, 2)}%` }}
+                />
+              </div>
+              <span className="font-mono text-xs font-bold text-slate-200">
                 {hydrationProgress}%
               </span>
             </div>
-            <div className="w-56 h-1.5 bg-slate-800 rounded-full overflow-hidden mt-1.5">
-              <div
-                className="h-full bg-gradient-to-r from-cyan-400 to-emerald-400 rounded-full transition-all duration-150"
-                style={{ width: `${hydrationProgress}%` }}
-              />
+          </div>
+
+          <div className="text-right pl-3 border-l border-slate-800">
+            <div className="text-[10px] text-slate-400">Live Dispatched</div>
+            <div className="text-xs font-mono font-bold text-sky-300">
+              {liveLitersDelivered.toLocaleString()} L
+            </div>
+            <div className="text-[9px] text-slate-500 font-mono">
+              Target: {waterDemandLiters.toLocaleString()} L
             </div>
           </div>
-          <div className="text-right pl-2 border-l border-slate-800">
-            <div className="text-[10px] text-slate-400">Target Dispatched</div>
-            <div className="text-xs font-mono font-bold text-sky-300">
-              {Math.round((waterDemandLiters * hydrationProgress) / 100).toLocaleString()} L
-            </div>
+
+          {/* Speed Multiplier Toggle */}
+          <div className="pl-2 border-l border-slate-800 flex items-center space-x-1">
+            <button
+              type="button"
+              onClick={() => setPumpMultiplier(pumpMultiplier === 1 ? 60 : 1)}
+              className={`text-[10px] px-2.5 py-1 rounded-lg border font-mono font-bold transition-all ${
+                pumpMultiplier === 60
+                  ? "bg-amber-500/20 text-amber-300 border-amber-500/50"
+                  : "bg-slate-900 text-slate-300 border-slate-700 hover:text-white"
+              }`}
+              title="Toggle speed: 1x Real-Time vs 60x Fast Flow"
+            >
+              {pumpMultiplier === 60 ? "⚡ 60x Fast Flow" : "⏱️ 1x Real-Time"}
+            </button>
           </div>
         </div>
       )}
 
       {/* Hydration Complete Notification */}
-      {isHydrated && !isIrrigating && (
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-[1000] bg-emerald-950/90 backdrop-blur-md border border-emerald-500/50 rounded-2xl px-5 py-2.5 text-white shadow-2xl flex items-center space-x-3 pointer-events-auto">
+      {isHydrated && !isIrrigating && lastDeliveredRef.current.liters > 0 && (
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-[1000] bg-emerald-950/95 backdrop-blur-md border border-emerald-500/50 rounded-2xl px-5 py-2.5 text-white shadow-2xl flex items-center space-x-3 pointer-events-auto animate-in fade-in slide-in-from-top-2">
           <CheckCircle2 className="w-5 h-5 text-emerald-400" />
           <div>
             <div className="text-xs font-bold text-emerald-200">
-              Paddy Basin Filled & Hydrated Successfully
+              Paddy Basin Hydrated · {lastDeliveredRef.current.liters.toLocaleString()} Liters Delivered
             </div>
             <div className="text-[10px] text-slate-300">
-              Optimal standing water depth reached with 0% runoff waste.
+              Pump ran for {formatElapsed(lastDeliveredRef.current.seconds)} at {flowRate} {flowRateUnit.toUpperCase()}.
             </div>
           </div>
+          <button
+            onClick={() => {
+              lastDeliveredRef.current = { liters: 0, seconds: 0 };
+              setIsHydrated(false);
+            }}
+            className="ml-2 text-xs text-slate-400 hover:text-white px-2 py-0.5 rounded bg-slate-900 border border-slate-800"
+          >
+            Dismiss
+          </button>
         </div>
       )}
 

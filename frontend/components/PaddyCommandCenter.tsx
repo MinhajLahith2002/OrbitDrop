@@ -298,10 +298,12 @@ export default function PaddyCommandCenter({
             <div className="border-l border-slate-800 pl-3">
               <span className="text-[10px] text-slate-400 block">Pump Run (@ {flowRate} {flowRateUnit.toUpperCase()})</span>
               <span className="font-extrabold font-mono text-sm flex items-center space-x-1">
-                <Clock className={`w-3.5 h-3.5 ${hasField ? "text-amber-400" : "text-slate-500"}`} />
-                <span className={hasField ? "text-amber-300" : "text-slate-500"}>
+                <Clock className={`w-3.5 h-3.5 ${hasField ? (isIrrigating ? "text-emerald-400 animate-spin" : "text-amber-400") : "text-slate-500"}`} />
+                <span className={hasField ? (isIrrigating ? "text-emerald-300 animate-pulse" : "text-amber-300") : "text-slate-500"}>
                   {hasField
-                    ? (effectiveLockout ? "0 mins (Paused)" : calculatedRuntimeFormatted)
+                    ? (isIrrigating 
+                        ? "PUMP ACTIVE (LIVE)" 
+                        : (effectiveLockout ? "0 mins (Paused)" : calculatedRuntimeFormatted))
                     : "--"}
                 </span>
               </span>
