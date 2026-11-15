@@ -33,6 +33,7 @@ export default function Home() {
   const [telemetryData, setTelemetryData] = useState<any>(null);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isSproutAIOpen, setIsSproutAIOpen] = useState(false);
+  const [isDeckExpanded, setIsDeckExpanded] = useState(false);
 
   const [selectedPreset, setSelectedPreset] = useState<PresetLocation | null>(
     PRESET_FARMLANDS[0]
@@ -104,6 +105,7 @@ export default function Home() {
   const handleFieldCreated = (field: FieldData) => {
     setActiveField(field);
     setIsIrrigating(false);
+    setIsDeckExpanded(true);
     fetchTelemetry(field, selectedPreset, selectedCrop, growthStage, irrigationMethod, flowRate, flowRateUnit);
     handleGenerateGrid(field);
   };
@@ -246,6 +248,10 @@ export default function Home() {
         isGeneratingGrid={isGeneratingGrid}
         gridData={gridData}
         onGenerateGrid={handleGenerateGrid}
+        telemetryData={telemetryData}
+        flowRate={flowRate}
+        flowRateUnit={flowRateUnit}
+        onOpenDetails={() => setIsDeckExpanded(true)}
       />
 
       {/* OrbitDrop Precision Paddy Command Center (Unified Bottom Deck) */}
@@ -274,6 +280,8 @@ export default function Home() {
           }
         }}
         onOpenSproutAI={() => setIsSproutAIOpen(true)}
+        isExpanded={isDeckExpanded}
+        onToggleExpand={() => setIsDeckExpanded(!isDeckExpanded)}
       />
 
       {/* Dedicated Floating Sprout AI Copilot (Bottom Right) */}

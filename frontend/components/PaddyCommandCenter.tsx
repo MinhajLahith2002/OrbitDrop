@@ -45,6 +45,8 @@ export interface PaddyCommandCenterProps {
   isIrrigating: boolean;
   onToggleSpray: () => void;
   onOpenSproutAI: () => void;
+  isExpanded?: boolean;
+  onToggleExpand?: () => void;
 }
 
 export default function PaddyCommandCenter({
@@ -66,8 +68,30 @@ export default function PaddyCommandCenter({
   isIrrigating,
   onToggleSpray,
   onOpenSproutAI,
+  isExpanded: isExpandedProp,
+  onToggleExpand,
 }: PaddyCommandCenterProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [internalExpanded, setInternalExpanded] = useState(false);
+  const isExpanded = isExpandedProp !== undefined ? isExpandedProp : internalExpanded;
+  const handleToggleExpand = () => {
+    if (onToggleExpand) {
+      onToggleExpand();
+    } else {
+      setInternalExpanded(!internalExpanded);
+    }
+  };
+
+  // Automatically expand the details deck as soon as a field is drawn
+  useEffect(() => {
+    if (field) {
+      if (isExpandedProp === false && onToggleExpand) {
+        onToggleExpand();
+      } else {
+        setInternalExpanded(true);
+      }
+    }
+  }, [field?.id]);
+
   const [overrideLockout, setOverrideLockout] = useState(false);
 
   // Lat / Lng inputs for custom location
@@ -265,7 +289,7 @@ export default function PaddyCommandCenter({
 
             {/* Toggle Expand Details */}
             <button
-              onClick={() => setIsExpanded(!isExpanded)}
+              onClick={handleToggleExpand}
               className="flex items-center space-x-1 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-300 hover:text-white text-xs font-semibold transition-all"
             >
               <span>{isExpanded ? "Collapse" : "Adjust & Schedule"}</span>
