@@ -168,9 +168,12 @@ export function calculatePumpRuntime(waterVolumeLiters, flowRate = 50, unit = "g
  */
 export function generate7DayIrrigationSchedule(
   baseDemandLiters,
-  flowRate = 50,
-  unit = "gpm",
-  forecastRainList = []
+  flowRate = 200,
+  unit = "lpm",
+  forecastRainList = [],
+  cropKey = "paddy",
+  growthStage = "mid",
+  isLockoutToday = false
 ) {
   const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   const today = new Date();
@@ -185,19 +188,47 @@ export function generate7DayIrrigationSchedule(
     const rainForecastMm = forecastRainList[i] || (i === 1 ? 14.5 : i === 4 ? 6.2 : 0);
 
     let status = "IRRIGATE";
-    let reason = "Optimal soil moisture deficit replenishment";
+    let reason = "Optimal soil moisture replenishment";
     let volumeLiters = baseDemandLiters;
 
-    if (rainForecastMm >= 15.0) {
+    if (i === 0 && isLockoutToday) {
       status = "SKIP";
-      reason = `Heavy rain predicted (${rainForecastMm} mm) — Lock pumps shut to prevent waterlogging`;
+      reason = "Monsoon rain lockout active — natural precipitation covers 100% of basin water needs";
+      volumeLiters = 0;
+    } else if (rainForecastMm >= 15.0) {
+      status = "SKIP";
+      reason = `Heavy rain predicted (${rainForecastMm} mm) — Lock pumps shut to prevent waterlogging & runoff`;
       volumeLiters = 0;
     } else if (rainForecastMm >= 5.0) {
       status = "REDUCED";
-      reason = `Moderate rain predicted (${rainForecastMm} mm) — 50% water delivery needed`;
+      reason = `Moderate rain predicted (${rainForecastMm} mm) — 50% top-up water delivery needed`;
       volumeLiters = Math.round(baseDemandLiters * 0.5);
+    } else if (cropKey === "paddy") {
+      // Specialized Rice / Paddy Agronomy AWD Logic
+      if (growthStage === "mid") {
+        // Panicle Initiation & Flowering (Peak Thirst): Continuous 5cm standing water required. NO dry cycles!
+        status = "IRRIGATE";
+        reason = "Panicle Initiation & Flowering — maintain 5 cm standing water layer (no dry stress permitted)";
+        volumeLiters = baseDemandLiters;
+      } else if (growthStage === "mature") {
+        // Pre-Harvest Ripening: Terminal Drainage. Zero water to allow grain hardening.
+        status = "REST";
+        reason = "Pre-harvest field drainage — terminal dry-down for uniform ripening & harvesting";
+        volumeLiters = 0;
+      } else {
+        // Tillering / Vegetative: Safe Alternate Wetting & Drying (AWD) cycle
+        if (i % 2 === 1 && baseDemandLiters > 0) {
+          status = "REST";
+          reason = "AWD Aeration Cycle — soil drying until water table drops to 15cm";
+          volumeLiters = 0;
+        } else {
+          status = "IRRIGATE";
+          reason = "AWD Re-flooding Cycle — restore 3-5 cm basin water layer";
+          volumeLiters = baseDemandLiters;
+        }
+      }
     } else if (i % 2 === 1 && baseDemandLiters > 0) {
-      // Periodic cycle for drip / sprinkler efficiency
+      // General non-paddy crops rest interval
       status = "REST";
       reason = "Root aerated dry interval — no watering required today";
       volumeLiters = 0;

@@ -246,11 +246,20 @@ app.post("/api/telemetry", async (req, res) => {
     const forecastRainList = lockoutResult.hourlyRainNext24h 
       ? [lockoutResult.totalForecastRain48h_mm, 2.5, 0, 1.2, 0, 8.4, 0] 
       : [0, 0, 0, 0, 0, 0, 0];
+
+    // Baseline crop daily thirst without single-day rain deduction
+    const baselineDailyDemandLiters = Math.round(
+      (cropResult.ETc_mm_per_day * areaHectares * 10000) / cropResult.systemEfficiency
+    );
+
     const sevenDaySchedule = generate7DayIrrigationSchedule(
-      cropResult.grossWaterDemandLiters,
+      baselineDailyDemandLiters,
       flowRate,
       flowRateUnit,
-      forecastRainList
+      forecastRainList,
+      crop,
+      growthStage,
+      lockoutResult.isLockout
     );
 
     return res.json({

@@ -121,7 +121,7 @@ export default function MapComponent({
         attributionControl: false,
       });
 
-      L.control.zoom({ position: "bottomright" }).addTo(map);
+      L.control.zoom({ position: "topleft" }).addTo(map);
 
       // Esri Satellite Basemap
       L.tileLayer(
@@ -605,7 +605,7 @@ export default function MapComponent({
           <div>
             <div className="flex items-center space-x-2">
               <span className="text-xs font-bold uppercase tracking-wider text-cyan-300">
-                Precision Variable-Rate Spray Active
+                Paddy Basin Irrigation Active
               </span>
               <span className="font-mono text-xs font-bold text-slate-100">
                 {hydrationProgress}%
@@ -633,10 +633,10 @@ export default function MapComponent({
           <CheckCircle2 className="w-5 h-5 text-emerald-400" />
           <div>
             <div className="text-xs font-bold text-emerald-200">
-              Field Saturated & Hydrated Successfully
+              Paddy Basin Filled & Hydrated Successfully
             </div>
             <div className="text-[10px] text-slate-300">
-              Target crop moisture achieved with 0% runoff waste.
+              Optimal standing water depth reached with 0% runoff waste.
             </div>
           </div>
         </div>
@@ -696,8 +696,8 @@ export default function MapComponent({
             <span className="font-mono font-bold text-cyan-300">{gridData.averageMoisture}%</span>
           </div>
 
-          <div className="text-[9px] text-slate-500 italic">
-            VRI Target: 3x droplets for Red, 1x for Amber, 0 for Green.
+          <div className="text-[10px] text-slate-400">
+            AWD Moisture Zones: Red (&lt;16% Deficit) · Amber (16-24% Low) · Green (&gt;24% Optimal)
           </div>
         </div>
       )}

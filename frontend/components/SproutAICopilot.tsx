@@ -128,7 +128,7 @@ export default function SproutAICopilot({
                 </span>
               </div>
               <p className="text-[10px] text-slate-400">
-                WaterWise-style farm copilot with live satellite context
+                Paddy Agronomist & Alternate Wetting and Drying (AWD) Copilot
               </p>
             </div>
           </div>

@@ -42,8 +42,8 @@ export default function Home() {
   const [selectedCrop, setSelectedCrop] = useState("paddy");
   const [growthStage, setGrowthStage] = useState("mid");
   const [irrigationMethod, setIrrigationMethod] = useState("basin");
-  const [flowRate, setFlowRate] = useState(50);
-  const [flowRateUnit, setFlowRateUnit] = useState<"gpm" | "lpm">("gpm");
+  const [flowRate, setFlowRate] = useState(200);
+  const [flowRateUnit, setFlowRateUnit] = useState<"gpm" | "lpm">("lpm");
 
   const fetchTelemetry = async (
     targetField = activeField,
@@ -189,13 +189,14 @@ export default function Home() {
 
   return (
     <main className="relative w-screen h-screen overflow-hidden bg-slate-950 font-sans">
-      {/* Sleek Top Header (Clean status without duplicate buttons) */}
+      {/* Sleek Top Header (Clean status with 1-click Basin Selector) */}
       <Header
         activeFieldPresent={!!activeField}
         onReset={handleReset}
         onOpenExport={() => setIsExportOpen(true)}
         locationName={selectedPreset?.name || "Polonnaruwa Basin"}
         activeCropName={activeCropDisplay}
+        onSelectPreset={handleSelectPreset}
       />
 
       {/* Full-Bleed Interactive Map Core with HTML5 Canvas Spray */}
@@ -218,12 +219,6 @@ export default function Home() {
         isGeneratingGrid={isGeneratingGrid}
         gridData={gridData}
         onGenerateGrid={handleGenerateGrid}
-        onOpenWaterUsage={() => {
-          if (!telemetryData && activeField) {
-            fetchTelemetryForField();
-          }
-        }}
-        onClearField={handleFieldCleared}
       />
 
       {/* OrbitDrop Precision Paddy Command Center (Unified Bottom Deck) */}

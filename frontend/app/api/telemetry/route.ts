@@ -81,11 +81,20 @@ export async function POST(req: NextRequest) {
     // 6. Calculate WaterWise Pump Runtime & 7-Day Irrigation Schedule
     const pumpRuntime = calculatePumpRuntime(cropResult.grossWaterDemandLiters, flowRate, flowRateUnit);
     const forecastRainList = lockoutResult.forecastTimeline?.map((item: any) => item.rain_mm) || [];
+    
+    // Baseline crop daily thirst without single-day rain deduction
+    const baselineDailyDemandLiters = Math.round(
+      (cropResult.ETc_mm_per_day * areaHectares * 10000) / cropResult.systemEfficiency
+    );
+
     const sevenDaySchedule = generate7DayIrrigationSchedule(
-      cropResult.grossWaterDemandLiters,
+      baselineDailyDemandLiters,
       flowRate,
       flowRateUnit,
-      forecastRainList
+      forecastRainList,
+      crop,
+      growthStage,
+      lockoutResult.isLockout
     );
 
     return NextResponse.json({

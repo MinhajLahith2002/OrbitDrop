@@ -194,7 +194,7 @@ export default function PaddyCommandCenter({
 
           {/* Section 3: Primary Actions */}
           <div className="flex items-center space-x-2">
-            {/* Start / Stop Smart Spray */}
+            {/* Start / Stop Irrigation Dispatch */}
             {field && (
               <button
                 onClick={onToggleSpray}
@@ -203,10 +203,10 @@ export default function PaddyCommandCenter({
                     ? "bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/30 animate-pulse"
                     : "bg-gradient-to-r from-cyan-500 via-sky-500 to-emerald-400 hover:from-cyan-400 hover:to-emerald-300 text-slate-950 shadow-cyan-500/25"
                 }`}
-                title="Simulate precision water spray over your field parcel"
+                title="Dispatch water pump into paddy basin"
               >
                 <Waves className="w-3.5 h-3.5" />
-                <span>{isIrrigating ? "Stop Spray" : "Smart Spray"}</span>
+                <span>{isIrrigating ? "Halt Irrigation" : "Dispatch Irrigation"}</span>
               </button>
             )}
 
@@ -222,7 +222,7 @@ export default function PaddyCommandCenter({
         </div>
 
         {/* Live Satellite & Machine Learning Telemetry Status Strip */}
-        <div className="px-3.5 py-1.5 bg-slate-900/90 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400 overflow-x-auto gap-2">
+        <div className="px-3.5 py-1.5 bg-slate-900/90 border-t border-slate-800/80 flex flex-wrap items-center justify-between text-[11px] text-slate-400 gap-2 overflow-hidden">
           <div className="flex items-center space-x-2 flex-shrink-0">
             <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span className="font-semibold text-slate-200">
@@ -233,7 +233,7 @@ export default function PaddyCommandCenter({
             </span>
             {nasaTelemetry && (
               <span className="text-slate-400 font-mono hidden md:inline">
-                · Temp: {nasaTelemetry.temperature_C}°C · Solar: {nasaTelemetry.solarRadiation_MJ_m2_day} MJ/m² · Humidity: {nasaTelemetry.relativeHumidity_percent}% · 48h Rain: {rainForecastMm} mm
+                · Temp: {nasaTelemetry.temperature_C}°C · Solar: {nasaTelemetry.solarRadiation_MJ_m2_day} MJ/m² · Humidity: {nasaTelemetry.relativeHumidity_percent}% · 48h Rain Forecast: {rainForecastMm} mm
               </span>
             )}
           </div>
@@ -315,7 +315,7 @@ export default function PaddyCommandCenter({
                         Pumps Paused: Monsoon Storm Warning ({rainForecastMm} mm Rain)
                       </div>
                       <div className="text-[11px] text-amber-200/90 mt-0.5">
-                        Natural rain will refill the paddy basin. Shut pump switches and keep bund spillways (*Wakkada*) clear to prevent seedlings from drowning and stop fertilizer washout.
+                        Natural rain will refill the paddy basin. Shut pump switches and keep bund spillways and drainage channels clear to prevent seedlings from drowning and stop fertilizer washout.
                       </div>
                     </div>
                   </div>
@@ -339,27 +339,27 @@ export default function PaddyCommandCenter({
                     <span className="text-[11px] text-slate-400 block mb-1">Target Standing Water Depth</span>
                     <div className="text-xl font-bold text-cyan-300 font-mono flex items-center space-x-2">
                       <Gauge className="w-4 h-4 text-cyan-400" />
-                      <span>{targetDepthCm} cm ({ (targetDepthCm / 2.54).toFixed(1) } in)</span>
+                      <span>{targetDepthCm} cm</span>
                     </div>
                     <span className="text-[10px] text-slate-500 block mt-1">
-                      AWD Controlled Water Depth for {stageName}
+                      AWD Controlled Standing Water Layer for {stageName}
                     </span>
                   </div>
 
                   <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
-                    <span className="text-[11px] text-slate-400 block mb-1">Total Net Water Required</span>
+                    <span className="text-[11px] text-slate-400 block mb-1">Net Daily Water Required</span>
                     <div className="text-xl font-bold text-sky-300 font-mono">
                       {grossWaterLiters === 0 && isLockout ? "0 Liters" : `${grossWaterLiters.toLocaleString()} Liters`}
                     </div>
                     <span className="text-[10px] text-slate-400 block mt-1 font-mono">
                       {grossWaterLiters === 0 && isLockout
                         ? `Rain covers 100% of thirst (${dailyThirstLiters.toLocaleString()} L)`
-                        : `Daily crop thirst: ${dailyThirstLiters.toLocaleString()} L across ${field ? field.areaHectares.toFixed(2) : "1.0"} ha`}
+                        : `Daily crop evapotranspiration loss: ${dailyThirstLiters.toLocaleString()} L across ${field ? field.areaHectares.toFixed(2) : "1.0"} ha`}
                     </span>
                   </div>
 
                   <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
-                    <span className="text-[11px] text-slate-400 block mb-1">Pump Runtime to Fill Basin</span>
+                    <span className="text-[11px] text-slate-400 block mb-1">Pump Runtime (AWD Maintenance)</span>
                     <div className="text-xl font-bold text-amber-300 font-mono flex items-center space-x-2">
                       <Clock className="w-4 h-4 text-amber-400" />
                       <span>{isLockout ? "0 mins (Paused)" : pumpRuntime}</span>
@@ -397,8 +397,8 @@ export default function PaddyCommandCenter({
                         <span className="text-sky-300 font-bold">{nasaTelemetry?.relativeHumidity_percent || 78}%</span>
                       </div>
                       <div className="bg-slate-950 p-2 rounded border border-slate-800">
-                        <span className="text-[10px] text-slate-500 block">Precipitation Inflow</span>
-                        <span className="text-emerald-300 font-bold">{recordedRainMm} mm rain</span>
+                        <span className="text-[10px] text-slate-500 block">Observed Rain (NASA)</span>
+                        <span className="text-emerald-300 font-bold">{recordedRainMm} mm</span>
                       </div>
                     </div>
                   </div>
@@ -576,7 +576,13 @@ export default function PaddyCommandCenter({
                 <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
                   <span>Automated 7-Day Alternate Wetting and Drying (AWD) Plan</span>
                   <span className="text-cyan-300 font-mono font-bold">
-                    Total Week: {schedule.reduce((acc: number, d: any) => acc + (d.volumeLiters || 0), 0).toLocaleString()} L
+                    {(() => {
+                      const totalL = schedule.reduce((acc: number, d: any) => acc + (d.volumeLiters || 0), 0);
+                      const totalG = Math.round(totalL * 0.264172);
+                      return flowRateUnit === "lpm"
+                        ? `Total Week: ${totalL.toLocaleString()} L (${totalG.toLocaleString()} Gal)`
+                        : `Total Week: ${totalG.toLocaleString()} Gal (${totalL.toLocaleString()} L)`;
+                    })()}
                   </span>
                 </div>
 
@@ -585,6 +591,8 @@ export default function PaddyCommandCenter({
                     const isIrrigate = day.status === "IRRIGATE";
                     const isSkip = day.status === "SKIP";
                     const isReduced = day.status === "REDUCED";
+                    const dayLiters = day.volumeLiters || 0;
+                    const dayGallons = day.volumeGallons || Math.round(dayLiters * 0.264172);
                     return (
                       <div
                         key={day.dayIndex}
@@ -607,13 +615,16 @@ export default function PaddyCommandCenter({
                           {isIrrigate || isReduced ? (
                             <div>
                               <div className="font-extrabold font-mono text-cyan-300 text-sm">
-                                {day.volumeGallons?.toLocaleString() || 0} Gal
+                                {flowRateUnit === "lpm" ? `${dayLiters.toLocaleString()} L` : `${dayGallons.toLocaleString()} Gal`}
                               </div>
-                              <div className="text-[10px] font-mono text-emerald-400">
+                              <div className="text-[10px] font-mono text-slate-400">
+                                {flowRateUnit === "lpm" ? `(${dayGallons.toLocaleString()} Gal)` : `(${dayLiters.toLocaleString()} L)`}
+                              </div>
+                              <div className="text-[10px] font-mono text-emerald-400 mt-0.5">
                                 Run: {day.runtimeFormatted}
                               </div>
                               {isReduced && (
-                                <div className="text-[9px] text-sky-300">
+                                <div className="text-[9px] text-sky-300 mt-0.5">
                                   Reduced (50% Rain)
                                 </div>
                               )}
@@ -624,7 +635,7 @@ export default function PaddyCommandCenter({
                             </div>
                           ) : (
                             <div className="text-[10px] text-slate-500">
-                              REST (Aeration)
+                              REST (AWD Dry)
                             </div>
                           )}
                         </div>
