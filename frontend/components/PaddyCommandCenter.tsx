@@ -317,12 +317,12 @@ export default function PaddyCommandCenter({
                 className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all shadow-md ${
                   isIrrigating
                     ? "bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/30 animate-pulse"
-                    : "bg-gradient-to-r from-cyan-500 via-sky-500 to-emerald-400 hover:from-cyan-400 hover:to-emerald-300 text-slate-950 shadow-cyan-500/25"
+                    : "bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 hover:from-emerald-300 hover:to-cyan-200 text-slate-950 shadow-emerald-500/25"
                 }`}
-                title="Dispatch water pump into paddy basin"
+                title={isIrrigating ? "Stop water pump" : "Start water pump into field"}
               >
                 <Waves className="w-3.5 h-3.5" />
-                <span>{isIrrigating ? "Halt Irrigation" : "Dispatch Irrigation"}</span>
+                <span>{isIrrigating ? "STOP WATER PUMP" : "START WATER PUMP"}</span>
               </button>
             )}
 
