@@ -8,9 +8,7 @@ interface HeaderProps {
   onOpenExport?: () => void;
   activeFieldPresent?: boolean;
   locationName?: string;
-  onOpenLocationModal?: () => void;
   activeCropName?: string;
-  onOpenCropModal?: () => void;
 }
 
 export default function Header({
@@ -18,9 +16,7 @@ export default function Header({
   onOpenExport,
   activeFieldPresent,
   locationName = "Polonnaruwa Basin",
-  onOpenLocationModal,
   activeCropName = "Rice / Paddy",
-  onOpenCropModal,
 }: HeaderProps) {
   return (
     <header className="absolute top-0 left-0 right-0 z-[1000] bg-slate-950/90 backdrop-blur-md border-b border-cyan-500/20 px-6 py-3 flex items-center justify-between text-white shadow-2xl">
@@ -32,43 +28,25 @@ export default function Header({
         <div>
           <div className="flex items-center space-x-2">
             <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-cyan-400 via-sky-200 to-emerald-400 bg-clip-text text-transparent">
-              OrbitDrop · WaterWise
+              OrbitDrop Sri Lanka
             </h1>
             <span className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full bg-cyan-950/80 text-cyan-300 border border-cyan-500/30">
-              NASA Precision Irrigation
+              Paddy Water Intelligence
             </span>
           </div>
           <p className="text-xs text-slate-400">
-            Smart Crop Watering, Weather Forecast & Rain Lockout (Sri Lanka)
+            Precision Irrigation, FAO-56 Penman-Monteith & 48h Rain Lockout
           </p>
         </div>
       </div>
 
-      {/* Middle: Active Farm & Crop Location Pills */}
-      <div className="hidden md:flex items-center space-x-2">
-        {onOpenLocationModal && (
-          <button
-            onClick={onOpenLocationModal}
-            className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-cyan-950/80 border border-slate-800 hover:border-cyan-500/40 text-xs text-slate-200 transition-all shadow-sm group"
-            title="Change Farm Location"
-          >
-            <MapPin className="w-3.5 h-3.5 text-cyan-400 group-hover:scale-110 transition-transform" />
-            <span className="font-semibold text-slate-100">{locationName}</span>
-            <span className="text-[10px] text-cyan-400 underline">Change</span>
-          </button>
-        )}
-
-        {onOpenCropModal && (
-          <button
-            onClick={onOpenCropModal}
-            className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-emerald-950/80 border border-slate-800 hover:border-emerald-500/40 text-xs text-slate-200 transition-all shadow-sm group"
-            title="Change Crop"
-          >
-            <Sprout className="w-3.5 h-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
-            <span className="font-semibold text-slate-100">{activeCropName}</span>
-            <span className="text-[10px] text-emerald-400 underline">Edit</span>
-          </button>
-        )}
+      {/* Middle: Clean Status Info (No duplicate buttons) */}
+      <div className="hidden md:flex items-center space-x-2 px-3.5 py-1.5 rounded-xl bg-slate-900/80 border border-slate-800 text-xs">
+        <Sprout className="w-3.5 h-3.5 text-emerald-400" />
+        <span className="font-semibold text-slate-200">{activeCropName}</span>
+        <span className="text-slate-600">·</span>
+        <MapPin className="w-3.5 h-3.5 text-cyan-400" />
+        <span className="text-slate-300">{locationName}</span>
       </div>
 
       {/* Right Controls */}
